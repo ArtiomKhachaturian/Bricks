@@ -21,26 +21,28 @@ namespace Bricks
 {
 
 // threadsafe listener wrapper (mutex lock)
-template<class TListener>
+template<typename T>
 class Listener
 {
 public:
     Listener() = default;
     constexpr Listener(std::nullptr_t) noexcept {}
-    explicit Listener(TListener listener);
+    explicit Listener(T listener);
     Listener(Listener&& tmp) noexcept;
     Listener(const Listener&) = delete;
     ~Listener() { reset(); }
-    void set(TListener listener = {});
+    template <typename U = T>
+    void set(U listener = {});
     void reset() { set({}); }
     bool empty() const noexcept;
     template <class Method, typename... Args>
     void invoke(const Method& method, Args&&... args) const;
     Listener& operator = (const Listener&) = delete;
     Listener& operator = (Listener&& tmp) noexcept;
-    Listener& operator = (TListener listener) noexcept;
+    template <typename U = T>
+    Listener& operator = (U listener) noexcept;
 private:
-    SafeObj<TListener, std::recursive_mutex> _listener;
+    SafeObj<T, std::recursive_mutex> _listener;
 };
 
 // lock-free specialization for std::shared_ptr<>
@@ -66,43 +68,42 @@ private:
     std::shared_ptr<T> _listener;
 };
 
-
-template<class TListener>
-inline Listener<TListener>::Listener(TListener listener)
+template<typename T>
+inline Listener<T>::Listener(T listener)
     : _listener(std::move(listener))
 {
 }
 
-template<class TListener>
-inline Listener<TListener>::Listener(Listener&& tmp) noexcept
+template<typename T>
+inline Listener<T>::Listener(Listener&& tmp) noexcept
 {
     _listener = tmp._listener.take();
 }
 
-template<class TListener>
-inline void Listener<TListener>::set(TListener listener)
+template<typename T> template<typename U>
+inline void Listener<T>::set(U listener)
 {
     LOCK_WRITE_SAFE_OBJ(_listener);
     _listener = std::move(listener);
 }
 
-template<class TListener>
-inline bool Listener<TListener>::empty() const noexcept
+template<typename T>
+inline bool Listener<T>::empty() const noexcept
 {
     LOCK_READ_SAFE_OBJ(_listener);
     return nullptr == _listener.constRef();
 }
 
-template<class TListener>
+template<typename T>
 template <class Method, typename... Args>
-inline void Listener<TListener>::invoke(const Method& method, Args&&... args) const
+inline void Listener<T>::invoke(const Method& method, Args&&... args) const
 {
     LOCK_READ_SAFE_OBJ(_listener);
-    Invoke<TListener>::make(_listener.constRef(), method, std::forward<Args>(args)...);
+    Invoke<T>::make(_listener.constRef(), method, std::forward<Args>(args)...);
 }
 
-template<class TListener>
-inline Listener<TListener>& Listener<TListener>::operator = (Listener&& tmp) noexcept
+template<typename T>
+inline Listener<T>& Listener<T>::operator = (Listener&& tmp) noexcept
 {
     if (&tmp != this) {
         set(tmp._listener.take());
@@ -110,8 +111,8 @@ inline Listener<TListener>& Listener<TListener>::operator = (Listener&& tmp) noe
     return *this;
 }
 
-template<class TListener>
-inline Listener<TListener>& Listener<TListener>::operator = (TListener listener) noexcept
+template<typename T> template<typename U>
+inline Listener<T>& Listener<T>::operator = (U listener) noexcept
 {
     set(std::move(listener));
     return *this;
