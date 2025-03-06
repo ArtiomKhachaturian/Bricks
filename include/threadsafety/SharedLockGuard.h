@@ -14,6 +14,9 @@
 #pragma once // SharedLockGuard.h
 #include <mutex>
 
+namespace Bricks
+{
+
 template<class TSharedMutex>
 class SharedLockGuard
 {
@@ -40,3 +43,5 @@ inline SharedLockGuard<TSharedMutex>::SharedLockGuard(TSharedMutex& mutex, std::
     : _mutex(mutex)
 {
 }
+
+} // namespace Bricks

@@ -13,10 +13,13 @@
 // limitations under the License.
 #pragma once // Listeners.h
 #include "Invoke.h"
-#include "ProtectedObj.h"
+#include "SafeObj.h"
 #include <algorithm>
 #include <memory>
 #include <vector>
+
+namespace Bricks
+{
 
 template<bool ThreadSafe>
 struct ListenersMutexSelector
@@ -61,7 +64,7 @@ public:
     Listeners& operator = (const Listeners& other);
     Listeners& operator = (Listeners&& tmp) noexcept;
 private:
-    ProtectedObj<std::vector<TListener>, MutexType> _listeners;
+    SafeObj<std::vector<TListener>, MutexType> _listeners;
 };
 
 template<class TListener, bool ThreadSafe>
@@ -73,7 +76,7 @@ inline Listeners<TListener, ThreadSafe>::Listeners()
 template<class TListener, bool ThreadSafe>
 inline Listeners<TListener, ThreadSafe>::Listeners(const Listeners& other)
 {
-    LOCK_READ_PROTECTED_OBJ(other._listeners);
+    LOCK_READ_SAFE_OBJ(other._listeners);
     _listeners = other._listeners.constRef();
 }
 
@@ -87,7 +90,7 @@ template<class TListener, bool ThreadSafe>
 inline bool Listeners<TListener, ThreadSafe>::add(const TListener& listener)
 {
     if (listener) {
-        LOCK_WRITE_PROTECTED_OBJ(_listeners);
+        LOCK_WRITE_SAFE_OBJ(_listeners);
         const auto it = std::find(_listeners->begin(), _listeners->end(), listener);
         if (it == _listeners->end()) {
             _listeners->push_back(listener);
@@ -101,7 +104,7 @@ template<class TListener, bool ThreadSafe>
 inline bool Listeners<TListener, ThreadSafe>::remove(const TListener& listener)
 {
     if (listener) {
-        LOCK_WRITE_PROTECTED_OBJ(_listeners);
+        LOCK_WRITE_SAFE_OBJ(_listeners);
         const auto it = std::find(_listeners->begin(), _listeners->end(), listener);
         if (it != _listeners->end()) {
             _listeners->erase(it);
@@ -114,21 +117,21 @@ inline bool Listeners<TListener, ThreadSafe>::remove(const TListener& listener)
 template<class TListener, bool ThreadSafe>
 inline void Listeners<TListener, ThreadSafe>::clear()
 {
-    LOCK_WRITE_PROTECTED_OBJ(_listeners);
+    LOCK_WRITE_SAFE_OBJ(_listeners);
     _listeners->clear();
 }
 
 template<class TListener, bool ThreadSafe>
 inline bool Listeners<TListener, ThreadSafe>::empty() const noexcept
 {
-    LOCK_READ_PROTECTED_OBJ(_listeners);
+    LOCK_READ_SAFE_OBJ(_listeners);
     return _listeners->empty();
 }
 
 template<class TListener, bool ThreadSafe>
 inline size_t Listeners<TListener, ThreadSafe>::size() const noexcept
 {
-    LOCK_READ_PROTECTED_OBJ(_listeners);
+    LOCK_READ_SAFE_OBJ(_listeners);
     return _listeners->size();
 }
 
@@ -137,7 +140,7 @@ template <class Method, typename... Args>
 inline void Listeners<TListener, ThreadSafe>::invoke(const Method& method,
                                                      Args&&... args) const
 {
-    LOCK_READ_PROTECTED_OBJ(_listeners);
+    LOCK_READ_SAFE_OBJ(_listeners);
     const auto& listeners = _listeners.constRef();
     if (!listeners.empty()) {
         size_t i = 0UL;
@@ -162,8 +165,8 @@ inline Listeners<TListener, ThreadSafe>& Listeners<TListener, ThreadSafe>::
     operator = (const Listeners& other)
 {
     if (&other != this) {
-        LOCK_WRITE_PROTECTED_OBJ(_listeners);
-        LOCK_READ_PROTECTED_OBJ(other._listeners);
+        LOCK_WRITE_SAFE_OBJ(_listeners);
+        LOCK_READ_SAFE_OBJ(other._listeners);
         _listeners = other._listeners.constRef();
     }
     return *this;
@@ -174,8 +177,10 @@ inline Listeners<TListener, ThreadSafe>& Listeners<TListener, ThreadSafe>::
     operator = (Listeners&& tmp) noexcept
 {
     if (&tmp != this) {
-        LOCK_WRITE_PROTECTED_OBJ(_listeners);
+        LOCK_WRITE_SAFE_OBJ(_listeners);
         _listeners = tmp._listeners.take();
     }
     return *this;
 }
+
+} // namespace Bricks

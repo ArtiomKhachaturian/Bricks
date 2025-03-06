@@ -14,6 +14,9 @@
 #pragma once // Blob.h
 #include <cstdint>
 
+namespace Bricks
+{
+
 class Blob
 {
 public:
@@ -22,3 +25,5 @@ public:
     virtual const uint8_t* data() const noexcept = 0;
     bool empty() const noexcept { return 0U == size() || nullptr == data(); }
 };
+
+} // namespace Bricks

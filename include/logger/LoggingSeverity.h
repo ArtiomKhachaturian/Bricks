@@ -13,6 +13,8 @@
 // limitations under the License.
 #pragma once // LoggingSeverity.h
 
+namespace Bricks
+{
 // The meanings of the levels are:
 //  Verbose: This level is for data which we do not want to appear in the
 //   normal debug log, but should appear in diagnostic logs.
@@ -27,3 +29,5 @@ enum class LoggingSeverity
     Warning,
     Error,
 };
+
+} // namespace Bricks

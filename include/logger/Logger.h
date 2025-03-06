@@ -15,6 +15,8 @@
 #include "LoggingSeverity.h"
 #include <string_view>
 
+namespace Bricks
+{
 // simple logger interface,
 // may thread-safe implementation required (depends on target's purposes)
 class Logger
@@ -41,3 +43,5 @@ public:
     bool canLogWarning() const { return canLog(LoggingSeverity::Warning); }
     bool canLogError() const { return canLog(LoggingSeverity::Error); }
 };
+
+} // namespace Bricks

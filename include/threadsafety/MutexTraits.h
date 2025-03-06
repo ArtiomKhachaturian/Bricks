@@ -16,6 +16,9 @@
 #include <mutex>
 #include <shared_mutex>
 
+namespace Bricks
+{
+
 template<class TMutexType> struct MutexTraits {
     using WriteLock = std::lock_guard<TMutexType>;
     using ReadLock  = WriteLock;
@@ -25,3 +28,5 @@ template<> struct MutexTraits<std::shared_mutex> {
     using WriteLock = std::lock_guard<std::shared_mutex>;
     using ReadLock  = SharedLockGuard<std::shared_mutex>;
 };
+
+} // namespace Bricks

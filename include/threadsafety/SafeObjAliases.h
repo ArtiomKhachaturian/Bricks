@@ -11,21 +11,25 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#pragma once // ProtectedObjAliases.h
-#include "ProtectedObj.h"
+#pragma once // SafeObjAliases.h
+#include "SafeObj.h"
 #include <memory>
 #include <optional>
 
+namespace Bricks
+{
 // aliases for most common std types
 
 template <typename T, class TMutexType = std::recursive_mutex>
-using ProtectedSharedPtr = ProtectedObj<std::shared_ptr<T>, TMutexType>;
+using SafeSharedPtr = SafeObj<std::shared_ptr<T>, TMutexType>;
 
 template <typename T, class TMutexType = std::recursive_mutex>
-using ProtectedWeakPtr = ProtectedObj<std::weak_ptr<T>, TMutexType>;
+using SafeWeakPtr = SafeObj<std::weak_ptr<T>, TMutexType>;
 
 template <typename T, class TMutexType = std::recursive_mutex>
-using ProtectedUniquePtr = ProtectedObj<std::unique_ptr<T>, TMutexType>;
+using SafeUniquePtr = SafeObj<std::unique_ptr<T>, TMutexType>;
 
 template <typename T, class TMutexType = std::recursive_mutex>
-using ProtectedOptional = ProtectedObj<std::optional<T>, TMutexType>;
+using SafeOptional = SafeObj<std::optional<T>, TMutexType>;
+
+} // namespace Bricks

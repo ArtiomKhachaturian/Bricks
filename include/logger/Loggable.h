@@ -15,6 +15,8 @@
 #include "Logger.h"
 #include <memory>
 
+namespace Bricks
+{
 // holder for store & share logger instance
 template <class TLoggerPointerType, class... BaseInterfaces>
 class Loggable : public BaseInterfaces...
@@ -57,7 +59,8 @@ inline Loggable<TLoggerPointerType, BaseInterfaces...>::
 }
 
 template <class TLoggerPointerType, class... BaseInterfaces>
-inline bool Loggable<TLoggerPointerType, BaseInterfaces...>::canLog(LoggingSeverity severity) const
+inline bool Loggable<TLoggerPointerType, BaseInterfaces...>::
+    canLog(LoggingSeverity severity) const
 {
     return _logger && _logger->canLog(severity);
 }
@@ -98,3 +101,5 @@ inline void Loggable<TLoggerPointerType, BaseInterfaces...>::
 {
     log(LoggingSeverity::Error, message, category);
 }
+
+} // namespace Bricks

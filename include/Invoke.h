@@ -14,6 +14,9 @@
 #pragma once // Invoke.h
 #include <memory>
 
+namespace Bricks
+{
+
 // special helper for Listeners<> & Listener<>
 template<class TListener>
 class Invoke
@@ -53,3 +56,5 @@ inline void Invoke<std::weak_ptr<T>>::make(const std::weak_ptr<T>& listenerRef,
     Invoke<std::shared_ptr<T>>::make(listenerRef.lock(), method,
                                      std::forward<Args>(args)...);
 }
+
+} // namespace Bricks

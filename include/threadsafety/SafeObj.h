@@ -11,49 +11,51 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#pragma once // ProtectedObj.h
+#pragma once // SafeObj.h
 #include "MutexTraits.h"
 
 // Do magic! Creates a unique name using the line number
-#define PROTECTED_OBJ_NAME(prefix) PROTECTED_OBJ_JOIN(prefix, __LINE__)
+#define SAFE_OBJ_NAME(prefix) SAFE_OBJ_JOIN(prefix, __LINE__)
 
-#define PROTECTED_OBJ_JOIN(symbol1, symbol2) DO_PROTECTED_OBJ_JOIN(symbol1, symbol2)
+#define SAFE_OBJ_JOIN(symbol1, symbol2) DO_SAFE_OBJ_JOIN(symbol1, symbol2)
 
-#define DO_PROTECTED_OBJ_JOIN(symbol1, symbol2) symbol1##symbol2
+#define DO_SAFE_OBJ_JOIN(symbol1, symbol2) symbol1##symbol2
 
-#define LOCK_READ_PROTECTED_OBJ(object) const typename decltype(object)::ReadLock \
-    PROTECTED_OBJ_NAME(rl)(object.mutex()) \
+#define LOCK_READ_SAFE_OBJ(object) const typename decltype(object)::ReadLock \
+    SAFE_OBJ_NAME(rl)(object.mutex()) \
 
-#define LOCK_WRITE_PROTECTED_OBJ(object) const typename decltype(object)::WriteLock \
-    PROTECTED_OBJ_NAME(wl)(object.mutex()) \
+#define LOCK_WRITE_SAFE_OBJ(object) const typename decltype(object)::WriteLock \
+    SAFE_OBJ_NAME(wl)(object.mutex()) \
 
+namespace Bricks
+{
 // Performance tests for different kind of mutexes:
 //
 // 1 million iterations, release type build, single thread
-// std::mutex           - LOCK_READ_PROTECTED_OBJ 19-21 ms  LOCK_WRITE_PROTECTED_OBJ 19-21 ms
-// std::recursive_mutex - LOCK_READ_PROTECTED_OBJ 32-33 ms, LOCK_WRITE_PROTECTED_OBJ 32-33 ms
-// std::shared_mutex    - LOCK_READ_PROTECTED_OBJ 41 ms,    LOCK_WRITE_PROTECTED_OBJ 43 ms
+// std::mutex           - LOCK_READ_SAFE_OBJ 19-21 ms  LOCK_WRITE_SAFE_OBJ 19-21 ms
+// std::recursive_mutex - LOCK_READ_SAFE_OBJ 32-33 ms, LOCK_WRITE_SAFE_OBJ 32-33 ms
+// std::shared_mutex    - LOCK_READ_SAFE_OBJ 41 ms,    LOCK_WRITE_SAFE_OBJ 43 ms
 
 template <typename T,
 class TMutexType = std::recursive_mutex,
 class TMutexTraits = MutexTraits<TMutexType>>
-class ProtectedObj
+class SafeObj
 {
 public:
     using Traits    = TMutexTraits;
     using WriteLock = typename Traits::WriteLock;
     using ReadLock  = typename Traits::ReadLock;
 public:
-    ProtectedObj() = default;
-    explicit ProtectedObj(T val);
-    explicit ProtectedObj(ProtectedObj&& tmp) noexcept;
+    SafeObj() = default;
+    explicit SafeObj(T val);
+    explicit SafeObj(SafeObj&& tmp) noexcept;
     template <class... Args>
-    ProtectedObj(Args&&... args);
-    ProtectedObj(const ProtectedObj&) = delete;
-    ProtectedObj& operator = (const ProtectedObj&) = delete;
-    ProtectedObj& operator = (ProtectedObj&& tmp) noexcept;
+    SafeObj(Args&&... args);
+    SafeObj(const SafeObj&) = delete;
+    SafeObj& operator = (const SafeObj&) = delete;
+    SafeObj& operator = (SafeObj&& tmp) noexcept;
     template <typename U = T>
-    ProtectedObj& operator = (U src) noexcept;
+    SafeObj& operator = (U src) noexcept;
     auto& mutex() const noexcept { return _mtx; }
     operator const T&() const noexcept { return constRef(); }
     operator T&() noexcept { return ref(); }
@@ -71,29 +73,29 @@ private:
     T _obj = {};
 };
 
-// impl. of ProtectedObj
+// impl. of SafeObj
 template <typename T, class TMutexType, class TMutexTraits>
-inline ProtectedObj<T, TMutexType, TMutexTraits>::ProtectedObj(T val)
+inline SafeObj<T, TMutexType, TMutexTraits>::SafeObj(T val)
     : _obj(std::move(val))
 {
 }
 
 template <typename T, class TMutexType, class TMutexTraits>
-inline ProtectedObj<T, TMutexType, TMutexTraits>::ProtectedObj(ProtectedObj&& tmp) noexcept
+inline SafeObj<T, TMutexType, TMutexTraits>::SafeObj(SafeObj&& tmp) noexcept
     : _obj(std::move(tmp._obj))
 {
 }
 
 template <typename T, class TMutexType, class TMutexTraits>
 template <class... Args>
-inline ProtectedObj<T, TMutexType, TMutexTraits>::ProtectedObj(Args&&... args)
+inline SafeObj<T, TMutexType, TMutexTraits>::SafeObj(Args&&... args)
     : _obj(std::forward<Args>(args)...)
 {
 }
 
 template <typename T, class TMutexType, class TMutexTraits>
-inline ProtectedObj<T, TMutexType, TMutexTraits>& ProtectedObj<T, TMutexType, TMutexTraits>::
-    operator = (ProtectedObj&& tmp) noexcept
+inline SafeObj<T, TMutexType, TMutexTraits>& SafeObj<T, TMutexType, TMutexTraits>::
+    operator = (SafeObj&& tmp) noexcept
 {
     if (&tmp != this) {
         _obj = std::move(tmp._obj);
@@ -103,9 +105,11 @@ inline ProtectedObj<T, TMutexType, TMutexTraits>& ProtectedObj<T, TMutexType, TM
 
 template <typename T, class TMutexType, class TMutexTraits>
 template <typename U>
-inline ProtectedObj<T, TMutexType, TMutexTraits>& ProtectedObj<T, TMutexType, TMutexTraits>::
+inline SafeObj<T, TMutexType, TMutexTraits>& SafeObj<T, TMutexType, TMutexTraits>::
     operator = (U src) noexcept
 {
     _obj = std::move(src);
     return *this;
 }
+
+} // namespace Bricks

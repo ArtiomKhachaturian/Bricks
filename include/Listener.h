@@ -13,9 +13,12 @@
 // limitations under the License.
 #pragma once // Listener.h
 #include "Invoke.h"
-#include "ProtectedObj.h"
+#include "SafeObj.h"
 #include <atomic>
 #include <memory>
+
+namespace Bricks
+{
 
 // threadsafe listener wrapper (mutex lock)
 template<class TListener>
@@ -37,7 +40,7 @@ public:
     Listener& operator = (Listener&& tmp) noexcept;
     Listener& operator = (TListener listener) noexcept;
 private:
-    ProtectedObj<TListener, std::recursive_mutex> _listener;
+    SafeObj<TListener, std::recursive_mutex> _listener;
 };
 
 // lock-free specialization for std::shared_ptr<>
@@ -79,14 +82,14 @@ inline Listener<TListener>::Listener(Listener&& tmp) noexcept
 template<class TListener>
 inline void Listener<TListener>::set(TListener listener)
 {
-    LOCK_WRITE_PROTECTED_OBJ(_listener);
+    LOCK_WRITE_SAFE_OBJ(_listener);
     _listener = std::move(listener);
 }
 
 template<class TListener>
 inline bool Listener<TListener>::empty() const noexcept
 {
-    LOCK_READ_PROTECTED_OBJ(_listener);
+    LOCK_READ_SAFE_OBJ(_listener);
     return nullptr == _listener.constRef();
 }
 
@@ -94,7 +97,7 @@ template<class TListener>
 template <class Method, typename... Args>
 inline void Listener<TListener>::invoke(const Method& method, Args&&... args) const
 {
-    LOCK_READ_PROTECTED_OBJ(_listener);
+    LOCK_READ_SAFE_OBJ(_listener);
     Invoke<TListener>::make(_listener.constRef(), method, std::forward<Args>(args)...);
 }
 
@@ -165,3 +168,5 @@ inline Listener<std::shared_ptr<T>>& Listener<std::shared_ptr<T>>::
     set(std::move(listener));
     return *this;
 }
+
+} // namespace Bricks
