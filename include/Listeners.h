@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once // Listeners.h
+#include "Invoke.h"
 #include "ProtectedObj.h"
 #include <algorithm>
 #include <memory>
@@ -37,19 +38,14 @@ struct ListenersMutexSelector<false>
     using MutexType = StubMutex;
 };
 
+// Listeners array wrapper (mutex lock by default),
+// supported all most known types like raw pointers,
+// std::shared_ptr<>, std::weak_ptr<>.
+// Note: std::unique_ptr<> doesn't supported
 template<class TListener, bool ThreadSafe = true>
 class Listeners
 {
     using MutexType = typename ListenersMutexSelector<ThreadSafe>::MutexType;
-private: // assertions
-    template<class T>
-    struct IsSharedPointer : std::false_type {};
-    template<class T>
-    struct IsSharedPointer<std::shared_ptr<T>> : std::true_type {};
-    template<class T>
-    using IsRawPointer = std::is_pointer<T>;
-    // std::unique_ptr<> doesn't supported, we don't know specification for [Remove] method
-    static_assert(IsRawPointer<TListener>::value || IsSharedPointer<TListener>::value);
 public:
     Listeners();
     Listeners(Listeners&& tmp) noexcept;
@@ -61,7 +57,7 @@ public:
     bool empty() const noexcept;
     size_t size() const noexcept;
     template <class Method, typename... Args>
-    void invokeMethod(const Method& method, Args&&... args) const;
+    void invoke(const Method& method, Args&&... args) const;
     Listeners& operator = (const Listeners& other);
     Listeners& operator = (Listeners&& tmp) noexcept;
 private:
@@ -84,8 +80,7 @@ inline Listeners<TListener, ThreadSafe>::Listeners(const Listeners& other)
 template<class TListener, bool ThreadSafe>
 inline Listeners<TListener, ThreadSafe>::Listeners(Listeners&& tmp) noexcept
 {
-    LOCK_WRITE_PROTECTED_OBJ(tmp._listeners);
-    _listeners = tmp._listeners.Take();
+    _listeners = tmp._listeners.take();
 }
 
 template<class TListener, bool ThreadSafe>
@@ -139,7 +134,8 @@ inline size_t Listeners<TListener, ThreadSafe>::size() const noexcept
 
 template<class TListener, bool ThreadSafe>
 template <class Method, typename... Args>
-inline void Listeners<TListener, ThreadSafe>::invokeMethod(const Method& method, Args&&... args) const
+inline void Listeners<TListener, ThreadSafe>::invoke(const Method& method,
+                                                     Args&&... args) const
 {
     LOCK_READ_PROTECTED_OBJ(_listeners);
     const auto& listeners = _listeners.constRef();
@@ -148,7 +144,7 @@ inline void Listeners<TListener, ThreadSafe>::invokeMethod(const Method& method,
         do {
             const size_t size = listeners.size();
             if (i < size) {
-                (listeners[i]->*method)(std::forward<Args>(args)...);
+                Invoke<TListener>::make(listeners[i], method, std::forward<Args>(args)...);
                 if (listeners.size() >= size) {
                     ++i;
                 }
@@ -179,8 +175,7 @@ inline Listeners<TListener, ThreadSafe>& Listeners<TListener, ThreadSafe>::
 {
     if (&tmp != this) {
         LOCK_WRITE_PROTECTED_OBJ(_listeners);
-        LOCK_WRITE_PROTECTED_OBJ(tmp._listeners);
-        _listeners = tmp._listeners.Take();
+        _listeners = tmp._listeners.take();
     }
     return *this;
 }
