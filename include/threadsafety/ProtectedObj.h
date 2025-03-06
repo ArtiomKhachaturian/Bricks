@@ -68,7 +68,7 @@ public:
     const T* operator -> () const noexcept { return &_obj; }
 private:
     mutable TMutexType _mtx;
-    T _obj;
+    T _obj = {};
 };
 
 // impl. of ProtectedObj
