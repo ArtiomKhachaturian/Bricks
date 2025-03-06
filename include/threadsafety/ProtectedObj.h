@@ -16,10 +16,14 @@
 
 // Do magic! Creates a unique name using the line number
 #define PROTECTED_OBJ_NAME(prefix) PROTECTED_OBJ_JOIN(prefix, __LINE__)
+
 #define PROTECTED_OBJ_JOIN(symbol1, symbol2) DO_PROTECTED_OBJ_JOIN(symbol1, symbol2)
+
 #define DO_PROTECTED_OBJ_JOIN(symbol1, symbol2) symbol1##symbol2
+
 #define LOCK_READ_PROTECTED_OBJ(object) const typename decltype(object)::ReadLock \
     PROTECTED_OBJ_NAME(rl)(object.mutex()) \
+
 #define LOCK_WRITE_PROTECTED_OBJ(object) const typename decltype(object)::WriteLock \
     PROTECTED_OBJ_NAME(wl)(object.mutex()) \
 
