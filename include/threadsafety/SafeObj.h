@@ -46,12 +46,14 @@ public:
     using WriteLock = typename Traits::WriteLock;
     using ReadLock  = typename Traits::ReadLock;
 public:
+    // construction
     SafeObj() = default;
     explicit SafeObj(T val);
     explicit SafeObj(SafeObj&& tmp) noexcept;
     template <class... Args>
     SafeObj(Args&&... args);
     SafeObj(const SafeObj&) = delete;
+    // unsafe operations (lock-free)
     SafeObj& operator = (const SafeObj&) = delete;
     SafeObj& operator = (SafeObj&& tmp) noexcept;
     template <typename U = T>
@@ -68,6 +70,10 @@ public:
     }
     T* operator -> () noexcept { return &_obj; }
     const T* operator -> () const noexcept { return &_obj; }
+    // safe operations (with locking)
+    template <typename U = T>
+    void operator () (U src);
+    T operator() () const;
 private:
     mutable TMutexType _mtx;
     T _obj = {};
@@ -110,6 +116,21 @@ inline SafeObj<T, TMutexType, TMutexTraits>& SafeObj<T, TMutexType, TMutexTraits
 {
     _obj = std::move(src);
     return *this;
+}
+
+template <typename T, class TMutexType, class TMutexTraits>
+template <typename U>
+void SafeObj<T, TMutexType, TMutexTraits>::operator () (U src)
+{
+    const WriteLock lock(mutex());
+    _obj = std::move(src);
+}
+
+template <typename T, class TMutexType, class TMutexTraits>
+T SafeObj<T, TMutexType, TMutexTraits>::operator() () const
+{
+    const ReadLock lock(mutex());
+    return _obj;
 }
 
 } // namespace Bricks
