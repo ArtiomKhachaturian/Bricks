@@ -41,6 +41,7 @@ public:
     Listener& operator = (Listener&& tmp) noexcept;
     template <typename U = T>
     Listener& operator = (U listener) noexcept;
+    explicit operator bool() const noexcept { return !empty(); }
 private:
     SafeObj<T, std::recursive_mutex> _listener;
 };
@@ -64,6 +65,7 @@ public:
     Listener& operator = (const Listener&) = delete;
     Listener& operator = (Listener&& tmp) noexcept;
     Listener& operator = (std::shared_ptr<T> listener) noexcept;
+    explicit operator bool() const noexcept { return !empty(); }
 private:
     std::shared_ptr<T> _listener;
 };
