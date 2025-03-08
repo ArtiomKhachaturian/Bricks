@@ -149,9 +149,9 @@ template <class Method, typename... Args>
 inline void Listener<std::shared_ptr<T>>::invoke(const Method& method,
                                                  Args&&... args) const
 {
-    Invoke<std::shared_ptr<T>>(std::atomic_load(&_listener),
-                               method,
-                               std::forward<Args>(args)...);
+    Invoke<std::shared_ptr<T>>::make(std::atomic_load(&_listener),
+                                     method,
+                                     std::forward<Args>(args)...);
 }
 
 template<typename T>

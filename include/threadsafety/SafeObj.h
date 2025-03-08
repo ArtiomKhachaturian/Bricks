@@ -42,6 +42,8 @@ class TMutexTraits = MutexTraits<TMutexType>>
 class SafeObj
 {
 public:
+    using Type      = T;
+    using Mutex     = TMutexType;
     using Traits    = TMutexTraits;
     using WriteLock = typename Traits::WriteLock;
     using ReadLock  = typename Traits::ReadLock;
