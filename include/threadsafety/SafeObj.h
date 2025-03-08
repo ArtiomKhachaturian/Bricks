@@ -78,7 +78,7 @@ public:
     T operator() () const;
 private:
     mutable TMutexType _mtx;
-    T _obj = {};
+    T _obj;
 };
 
 // impl. of SafeObj
