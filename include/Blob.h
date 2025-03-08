@@ -20,10 +20,12 @@ namespace Bricks
 class Blob
 {
 public:
+    Blob() = default;
     virtual ~Blob() = default;
-    virtual size_t size() const noexcept = 0;
-    virtual const uint8_t* data() const noexcept = 0;
+    virtual size_t size() const noexcept { return 0U; }
+    virtual const uint8_t* data() const noexcept { return nullptr; }
     bool empty() const noexcept { return 0U == size() || nullptr == data(); }
+    explicit operator bool () const noexcept { return size() > 0U && nullptr != data(); }
 };
 
 } // namespace Bricks
