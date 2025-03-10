@@ -18,43 +18,30 @@ namespace Bricks
 {
 
 // special helper for Listeners<> & Listener<>
-template<class TListener>
+template<class TListener, typename TResult = void>
 class Invoke
 {
 public:
     template <class Method, typename... Args>
-    static void make(const TListener& listener, const Method& method,
-                     Args&&... args);
+    static TResult make(const TListener& listener, const Method& method,
+                        Args&&... args) {
+        if (listener) {
+            return ((*listener).*method)(std::forward<Args>(args)...);
+        }
+        return TResult();
+    }
 };
 
-template<typename T>
-class Invoke<std::weak_ptr<T>>
+template<typename T, typename TResult>
+class Invoke<std::weak_ptr<T>, TResult>
 {
+    using Forward = Invoke<std::shared_ptr<T>, TResult>;
 public:
     template <class Method, typename... Args>
-    static void make(const std::weak_ptr<T>& listenerRef, const Method& method,
-                     Args&&... args);
-};
-
-template<class TListener>
-template <class Method, typename... Args>
-inline void Invoke<TListener>::make(const TListener& listener,
-                                    const Method& method,
-                                    Args&&... args)
-{
-    if (listener) {
-        ((*listener).*method)(std::forward<Args>(args)...);
+    static TResult make(const std::weak_ptr<T>& listenerRef, const Method& method,
+                        Args&&... args) {
+        return Forward::make(listenerRef.lock(), method, std::forward<Args>(args)...);
     }
-}
-
-template<typename T>
-template <class Method, typename... Args>
-inline void Invoke<std::weak_ptr<T>>::make(const std::weak_ptr<T>& listenerRef,
-                                           const Method& method,
-                                           Args&&... args)
-{
-    Invoke<std::shared_ptr<T>>::make(listenerRef.lock(), method,
-                                     std::forward<Args>(args)...);
-}
+};
 
 } // namespace Bricks

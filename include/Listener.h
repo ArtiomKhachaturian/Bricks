@@ -37,6 +37,8 @@ public:
     bool empty() const noexcept;
     template <class Method, typename... Args>
     void invoke(const Method& method, Args&&... args) const;
+    template <typename R, class Method, typename... Args>
+    R invokeR(const Method& method, Args&&... args) const;
     Listener& operator = (const Listener&) = delete;
     Listener& operator = (Listener&& tmp) noexcept;
     template <typename U = T>
@@ -62,6 +64,8 @@ public:
     bool empty() const noexcept;
     template <class Method, typename... Args>
     void invoke(const Method& method, Args&&... args) const;
+    template <typename R, class Method, typename... Args>
+    R invokeR(const Method& method, Args&&... args) const;
     Listener& operator = (const Listener&) = delete;
     Listener& operator = (Listener&& tmp) noexcept;
     Listener& operator = (std::shared_ptr<T> listener) noexcept;
@@ -102,6 +106,14 @@ inline void Listener<T>::invoke(const Method& method, Args&&... args) const
 {
     LOCK_READ_SAFE_OBJ(_listener);
     Invoke<T>::make(_listener.constRef(), method, std::forward<Args>(args)...);
+}
+
+template<typename T>
+template <typename R, class Method, typename... Args>
+inline R Listener<T>::invokeR(const Method& method, Args&&... args) const
+{
+    LOCK_READ_SAFE_OBJ(_listener);
+    return Invoke<T, R>::make(_listener.constRef(), method, std::forward<Args>(args)...);
 }
 
 template<typename T>
@@ -152,6 +164,14 @@ inline void Listener<std::shared_ptr<T>>::invoke(const Method& method,
     Invoke<std::shared_ptr<T>>::make(std::atomic_load(&_listener),
                                      method,
                                      std::forward<Args>(args)...);
+}
+
+template<typename T>
+template <typename R, class Method, typename... Args>
+inline R Listener<std::shared_ptr<T>>::invokeR(const Method& method, Args&&... args) const
+{
+    return Invoke<std::shared_ptr<T>, R>::make(std::atomic_load(&_listener),
+                                               method, std::forward<Args>(args)...);
 }
 
 template<typename T>
