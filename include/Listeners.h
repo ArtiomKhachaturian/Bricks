@@ -41,6 +41,29 @@ struct ListenersMutexSelector<false>
     using MutexType = StubMutex;
 };
 
+enum class AddResult
+{
+    NullInput,      // failure - NULL pointer
+    Duplicate,      // failure - already exists in the list
+    OkFirst,        // ok, 1st listener was added
+    Ok              // ok
+};
+
+inline bool constexpr ok(AddResult result) {
+    return AddResult::Ok == result || AddResult::OkFirst == result;
+}
+
+enum class RemoveResult
+{
+    NullInput,      // failure - wrong input or NULL pointer
+    OkLast,         // ok, last listener was removed
+    Ok              // ok
+};
+
+inline bool constexpr ok(RemoveResult result) {
+    return RemoveResult::Ok == result || RemoveResult::OkLast == result;
+}
+
 // Listeners array wrapper (mutex lock by default),
 // supported all most known types like raw pointers,
 // std::shared_ptr<>, std::weak_ptr<>.
@@ -54,8 +77,8 @@ public:
     Listeners(Listeners&& tmp) noexcept;
     Listeners(const Listeners& other);
     ~Listeners() { clear(); }
-    bool add(const TListener& listener);
-    bool remove(const TListener& listener);
+    AddResult add(const TListener& listener);
+    RemoveResult remove(const TListener& listener);
     void clear();
     bool empty() const noexcept;
     size_t size() const noexcept;
@@ -87,31 +110,32 @@ inline Listeners<TListener, ThreadSafe>::Listeners(Listeners&& tmp) noexcept
 }
 
 template<class TListener, bool ThreadSafe>
-inline bool Listeners<TListener, ThreadSafe>::add(const TListener& listener)
+inline AddResult Listeners<TListener, ThreadSafe>::add(const TListener& listener)
 {
     if (listener) {
         LOCK_WRITE_SAFE_OBJ(_listeners);
         const auto it = std::find(_listeners->begin(), _listeners->end(), listener);
         if (it == _listeners->end()) {
             _listeners->push_back(listener);
-            return true;
+            return 1U == _listeners->size() ? AddResult::OkFirst : AddResult::Ok;
         }
+        return AddResult::Duplicate;
     }
-    return false;
+    return AddResult::NullInput;
 }
 
 template<class TListener, bool ThreadSafe>
-inline bool Listeners<TListener, ThreadSafe>::remove(const TListener& listener)
+inline RemoveResult Listeners<TListener, ThreadSafe>::remove(const TListener& listener)
 {
     if (listener) {
         LOCK_WRITE_SAFE_OBJ(_listeners);
         const auto it = std::find(_listeners->begin(), _listeners->end(), listener);
         if (it != _listeners->end()) {
             _listeners->erase(it);
-            return true;
+            return _listeners->empty() ? RemoveResult::OkLast : RemoveResult::Ok;
         }
     }
-    return false;
+    return RemoveResult::NullInput;
 }
 
 template<class TListener, bool ThreadSafe>
