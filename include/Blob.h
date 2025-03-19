@@ -32,7 +32,7 @@ public:
      *
      * Constructs an empty `Blob` instance with default values.
      */
-    Blob() = default;
+    constexpr Blob() = default;
 
     /**
      * @brief Virtual destructor.
@@ -49,7 +49,7 @@ public:
      *
      * @return The size of the blob's data in bytes.
      */
-    virtual size_t size() const noexcept { return 0U; }
+    virtual size_t size() const { return 0U; }
 
     /**
      * @brief Gets a pointer to the raw data contained in the blob.
@@ -59,7 +59,7 @@ public:
      *
      * @return A constant pointer to the blob's data, or `nullptr` if no data is available.
      */
-    virtual const uint8_t* data() const noexcept { return nullptr; }
+    virtual const uint8_t* data() const { return nullptr; }
 
     /**
      * @brief Checks if the blob is empty.
@@ -68,7 +68,7 @@ public:
      *
      * @return `true` if the blob is empty, otherwise `false`.
      */
-    bool empty() const noexcept { return 0U == size() || nullptr == data(); }
+    bool empty() const { return 0U == size() || nullptr == data(); }
 
     /**
      * @brief Checks if the blob is valid (non-empty).
@@ -78,7 +78,7 @@ public:
      *
      * @return `true` if the blob is valid, otherwise `false`.
      */
-    explicit operator bool () const noexcept { return size() > 0U && nullptr != data(); }
+    explicit operator bool () const { return size() > 0U && nullptr != data(); }
 };
 
 } // namespace Bricks
