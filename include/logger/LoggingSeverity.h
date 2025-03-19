@@ -15,18 +15,43 @@
 
 namespace Bricks
 {
-// The meanings of the levels are:
-//  Verbose: This level is for data which we do not want to appear in the
-//   normal debug log, but should appear in diagnostic logs.
-//  Info: Chatty level used in debugging for all sorts of things, the default
-//   in debug builds.
-//  Warning: Something that may warrant investigation.
-//  Error: Something that should not have occurred.
+
+/**
+ * @brief Enum class representing different levels of logging severity.
+ *
+ * Provides a hierarchy of logging levels to indicate the importance and type
+ * of messages logged by the system.
+ */
 enum class LoggingSeverity
 {
+    /**
+     * @brief Verbose: For detailed diagnostic data.
+     *
+     * This level is used for information that typically does not appear in
+     * the normal debug log but is useful for diagnostic purposes.
+     */
     Verbose,
+
+    /**
+     * @brief Info: Chatty level for general debugging information.
+     *
+     * Used for a variety of debug messages. This is the default level in debug builds.
+     */
     Info,
+
+    /**
+     * @brief Warning: Indicates potential issues that may require investigation.
+     *
+     * This level is for events that might suggest an issue but do not prevent
+     * normal operation.
+     */
     Warning,
+
+    /**
+     * @brief Error: Represents critical issues that should not occur.
+     *
+     * This level is for serious problems that require immediate attention.
+     */
     Error,
 };
 

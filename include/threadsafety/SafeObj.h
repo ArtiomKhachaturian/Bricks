@@ -29,6 +29,7 @@
 
 namespace Bricks
 {
+
 // Performance tests for different kind of mutexes:
 //
 // 1 million iterations, release type build, single thread
@@ -36,48 +37,189 @@ namespace Bricks
 // std::recursive_mutex - LOCK_READ_SAFE_OBJ 32-33 ms, LOCK_WRITE_SAFE_OBJ 32-33 ms
 // std::shared_mutex    - LOCK_READ_SAFE_OBJ 41 ms,    LOCK_WRITE_SAFE_OBJ 43 ms
 
+/**
+ * @brief A thread-safe wrapper for an object with customizable mutex and locking traits.
+ *
+ * The `SafeObj` class is designed to provide safe and unsafe access to an object of type `T`
+ * in multithreaded environments. It uses customizable mutex types and traits for locking
+ * and ensures proper synchronization where necessary.
+ *
+ * @tparam T The type of the encapsulated object.
+ * @tparam TMutexType The type of the mutex used for synchronization (defaults to `std::recursive_mutex`).
+ * @tparam TMutexTraits The traits class that defines locking behavior (defaults to `MutexTraits<TMutexType>`).
+ */
 template <typename T,
-class TMutexType = std::recursive_mutex,
-class TMutexTraits = MutexTraits<TMutexType>>
+          class TMutexType = std::recursive_mutex,
+          class TMutexTraits = MutexTraits<TMutexType>>
 class SafeObj
 {
 public:
-    using Type      = T;
-    using Mutex     = TMutexType;
-    using Traits    = TMutexTraits;
+    /// @brief Alias for the encapsulated object type.
+    using Type = T;
+
+    /// @brief Alias for the mutex type used for synchronization.
+    using Mutex = TMutexType;
+
+    /// @brief Alias for the traits type used for defining lock types.
+    using Traits = TMutexTraits;
+
+    /// @brief Alias for the type of lock used for writing.
     using WriteLock = typename Traits::WriteLock;
-    using ReadLock  = typename Traits::ReadLock;
+
+    /// @brief Alias for the type of lock used for reading.
+    using ReadLock = typename Traits::ReadLock;
+
 public:
-    // construction
+    /**
+     * @brief Default constructor.
+     *
+     * Constructs an empty `SafeObj` with default-initialized internal object.
+     */
     SafeObj() = default;
+
+    /**
+     * @brief Constructs a `SafeObj` with an initial value.
+     *
+     * @param val The initial value for the encapsulated object.
+     */
     explicit SafeObj(T val);
+
+    /**
+     * @brief Move constructor.
+     *
+     * Transfers ownership of the internal object from a temporary `SafeObj`.
+     *
+     * @param tmp The temporary `SafeObj` to move from.
+     */
     explicit SafeObj(SafeObj&& tmp) noexcept;
+
+    /**
+     * @brief Constructs a `SafeObj` with variadic arguments.
+     *
+     * The arguments are forwarded to the constructor of the encapsulated object.
+     *
+     * @tparam Args Variadic template arguments for the encapsulated object's constructor.
+     * @param args Arguments to forward.
+     */
     template <class... Args>
     SafeObj(Args&&... args);
+
+    /// @brief Copy constructor is disabled to prevent copying.
     SafeObj(const SafeObj&) = delete;
-    // unsafe operations (lock-free)
-    SafeObj& operator = (const SafeObj&) = delete;
-    SafeObj& operator = (SafeObj&& tmp) noexcept;
+
+    /// @brief Copy assignment is disabled to prevent copying.
+    SafeObj& operator=(const SafeObj&) = delete;
+
+    /**
+     * @brief Move assignment operator.
+     *
+     * Transfers ownership of the internal object from another `SafeObj`.
+     *
+     * @param tmp The temporary `SafeObj` to move from.
+     * @return A reference to this `SafeObj`.
+     */
+    SafeObj& operator=(SafeObj&& tmp) noexcept;
+
+    /**
+     * @brief Assigns a new value to the encapsulated object.
+     *
+     * @tparam U The type of the new value (defaults to `T`).
+     * @param src The new value to assign.
+     * @return A reference to this `SafeObj`.
+     */
     template <typename U = T>
-    SafeObj& operator = (U src) noexcept;
+    SafeObj& operator=(U src) noexcept;
+
+    /**
+     * @brief Gets a reference to the internal mutex.
+     *
+     * @return A reference to the mutex used for synchronization.
+     */
     auto& mutex() const noexcept { return _mtx; }
+
+    /**
+     * @brief Implicitly converts the object to a constant reference.
+     *
+     * @return A constant reference to the encapsulated object.
+     */
     operator const T&() const noexcept { return constRef(); }
+
+    /**
+     * @brief Implicitly converts the object to a mutable reference.
+     *
+     * @return A mutable reference to the encapsulated object.
+     */
     operator T&() noexcept { return ref(); }
+
+    /**
+     * @brief Gets a constant reference to the encapsulated object.
+     *
+     * @return A constant reference to the encapsulated object.
+     */
     const T& constRef() const noexcept { return _obj; }
+
+    /**
+     * @brief Gets a mutable reference to the encapsulated object.
+     *
+     * @return A mutable reference to the encapsulated object.
+     */
     T& ref() noexcept { return _obj; }
+
+    /**
+     * @brief Takes ownership of the encapsulated object.
+     *
+     * This moves the internal object out of the `SafeObj` instance, leaving it empty.
+     *
+     * @return The encapsulated object.
+     */
     T take() noexcept { return std::move(_obj); }
+
+    /**
+     * @brief Exchanges the encapsulated object with the provided object.
+     *
+     * @param obj The object to exchange with.
+     * @return The old encapsulated object.
+     */
     T exchange(T obj) {
         std::swap(_obj, obj);
         return obj; // old
     }
-    T* operator -> () noexcept { return &_obj; }
-    const T* operator -> () const noexcept { return &_obj; }
-    // safe operations (with locking)
+
+    /**
+     * @brief Accesses the encapsulated object via pointer semantics.
+     *
+     * @return A pointer to the encapsulated object.
+     */
+    T* operator->() noexcept { return &_obj; }
+
+    /**
+     * @brief Accesses the encapsulated object via pointer semantics (constant).
+     *
+     * @return A constant pointer to the encapsulated object.
+     */
+    const T* operator->() const noexcept { return &_obj; }
+
+    /**
+     * @brief Safely assigns a new value to the encapsulated object with locking.
+     *
+     * @tparam U The type of the new value (defaults to `T`).
+     * @param src The new value to assign.
+     */
     template <typename U = T>
-    void operator () (U src);
-    T operator() () const;
+    void operator()(U src);
+
+    /**
+     * @brief Safely retrieves the encapsulated object with locking.
+     *
+     * @return The encapsulated object.
+     */
+    T operator()() const;
+
 private:
+    /// @brief The mutex used for synchronization.
     mutable TMutexType _mtx;
+
+    /// @brief The encapsulated object.
     T _obj;
 };
 
