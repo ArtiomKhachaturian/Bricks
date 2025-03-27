@@ -312,7 +312,7 @@ template<typename T>
 inline bool Listener<T>::empty() const noexcept
 {
     LOCK_READ_SAFE_OBJ(_listener);
-    return nullptr == _listener.constRef();
+    return Invoke<T>::empty(_listener.constRef());
 }
 
 template<typename T>

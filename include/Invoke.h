@@ -53,6 +53,20 @@ public:
         }
         return TResult();
     }
+    
+    /**
+     * @brief Verifies if the referenced listener object is null.
+     *
+     * This method checks whether the provided listener is uninitialized
+     * or does not reference a valid object. It can be used to ensure
+     * that the listener is valid before invoking any methods on it.
+     *
+     * @param listener The listener object to verify.
+     * @return `true` if the listener is null; otherwise, `false`.
+     */
+    static bool empty(const TListener& listener) {
+        return nullptr == listener;
+    }
 };
 
 /**
@@ -79,16 +93,31 @@ public:
      *
      * @tparam Method The type of the method to be invoked.
      * @tparam Args The types of the arguments to be passed to the method.
-     * @param listenerRef The weak pointer referencing the listener object.
+     * @param listener The weak pointer referencing the listener object.
      * @param method The method pointer to be invoked on the listener.
      * @param args The arguments to pass to the method.
      * @return The result of the invoked method, or a default-constructed `TResult` if the lock fails.
      */
     template <class Method, typename... Args>
-    static TResult make(const std::weak_ptr<T>& listenerRef,
+    static TResult make(const std::weak_ptr<T>& listener,
                         const Method& method,
                         Args&&... args) {
-        return Forward::make(listenerRef.lock(), method, std::forward<Args>(args)...);
+        return Forward::make(listener.lock(), method, std::forward<Args>(args)...);
+    }
+    
+    /**
+     * @brief Checks whether the object referenced by the weak pointer has been deleted.
+     *
+     * This method verifies whether the weak pointer refers to an expired object, indicating
+     * that the referenced object has been destroyed or no longer exists. It is particularly
+     * useful for ensuring the validity of a `std::weak_ptr` before attempting to lock it
+     * or invoke any methods on the referenced object.
+     *
+     * @param listener The weak pointer referencing the listener object.
+     * @return `true` if the referenced object has been deleted (expired), otherwise `false`.
+     */
+    static bool empty(const std::weak_ptr<T>& listener) {
+        return listener.expired();
     }
 };
 
