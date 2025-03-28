@@ -195,8 +195,10 @@ public:
      * @brief Clears all listeners from the list.
      *
      * Removes all listeners from the collection.
+     *
+     * @return `true` if the list was not empty, otherwise `false`.
      */
-    void clear();
+    bool clear();
 
     /**
      * @brief Checks if the list of listeners is empty.
@@ -300,10 +302,14 @@ inline RemoveResult Listeners<TListener, ThreadSafe>::remove(const TListener& li
 }
 
 template<class TListener, bool ThreadSafe>
-inline void Listeners<TListener, ThreadSafe>::clear()
+inline bool Listeners<TListener, ThreadSafe>::clear()
 {
     LOCK_WRITE_SAFE_OBJ(_listeners);
-    _listeners->clear();
+    if (!_listeners->empty()) {
+        _listeners->clear();
+        return true;
+    }
+    return false;
 }
 
 template<class TListener, bool ThreadSafe>
