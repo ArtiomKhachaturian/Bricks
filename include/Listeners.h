@@ -246,7 +246,15 @@ public:
      * @return A reference to this `Listeners` instance.
      */
     Listeners& operator=(Listeners&& tmp) noexcept;
-
+    
+    /**
+     * @brief Checks if the listeners is valid (non-empty).
+     *
+     * This operator allows the `Listeners` to be used in a boolean context.
+     *
+     * @return `true` if the listener is valid, otherwise `false`.
+     */
+    explicit operator bool() const noexcept { return !empty(); }
 private:
     /// @brief A thread-safe wrapper around the vector of listener objects.
     SafeObj<std::vector<TListener>, MutexType> _listeners;
