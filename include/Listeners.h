@@ -190,6 +190,15 @@ public:
      * @return The result of the removal operation (e.g., `RemoveResult::Ok`, `RemoveResult::NullInput`).
      */
     RemoveResult remove(const TListener& listener);
+    
+    /**
+     * @brief Checks if the given listener is present in the list.
+     *
+     *
+     * @param listener The listener object to check.
+     * @return `true` if the list contains such listener, otherwise `false`.
+     */
+    bool contains(const TListener& listener) const;
 
     /**
      * @brief Clears all listeners from the list.
@@ -226,6 +235,19 @@ public:
      */
     template <class Method, typename... Args>
     void invoke(const Method& method, Args&&... args) const;
+    
+    /**
+     * @brief Applies a given functor to each listener in the list.
+     *
+     * This method iterates over all listeners in the list and invokes
+     * the provided functor for each listener.
+     *
+     * @tparam Functor A callable type that defines operator()(listener) or similar.
+     * @param functor The functor to apply to each listener. It must be capable of
+     *                accepting a single argument of the type stored in the list.
+     */
+    template <class Functor>
+    void foreach(const Functor& functor) const;
 
     /**
      * @brief Copy assignment operator.
@@ -310,6 +332,17 @@ inline RemoveResult Listeners<TListener, ThreadSafe>::remove(const TListener& li
 }
 
 template<class TListener, bool ThreadSafe>
+inline bool Listeners<TListener, ThreadSafe>::contains(const TListener& listener) const
+{
+    if (listener) {
+        LOCK_WRITE_SAFE_OBJ(_listeners);
+        const auto it = std::find(_listeners->begin(), _listeners->end(), listener);
+        return it != _listeners->end();
+    }
+    return false;
+}
+
+template<class TListener, bool ThreadSafe>
 inline bool Listeners<TListener, ThreadSafe>::clear()
 {
     LOCK_WRITE_SAFE_OBJ(_listeners);
@@ -347,6 +380,30 @@ inline void Listeners<TListener, ThreadSafe>::invoke(const Method& method,
             const size_t size = listeners.size();
             if (i < size) {
                 Invoke<TListener>::make(listeners[i], method, std::forward<Args>(args)...);
+                if (listeners.size() >= size) {
+                    ++i;
+                }
+            }
+            else {
+                break;
+            }
+        }
+        while(true);
+    }
+}
+
+template<class TListener, bool ThreadSafe>
+template <class Functor>
+inline void Listeners<TListener, ThreadSafe>::foreach(const Functor& functor) const
+{
+    LOCK_READ_SAFE_OBJ(_listeners);
+    const auto& listeners = _listeners.constRef();
+    if (!listeners.empty()) {
+        size_t i = 0UL;
+        do {
+            const size_t size = listeners.size();
+            if (i < size) {
+                functor(listeners[i]);
                 if (listeners.size() >= size) {
                     ++i;
                 }
