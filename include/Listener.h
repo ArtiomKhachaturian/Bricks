@@ -95,6 +95,13 @@ public:
      * @return `true` if the listener is empty, otherwise `false`.
      */
     bool empty() const noexcept;
+    
+    /**
+     * @brief Extracts and returns the listener object.
+     *
+     * @return An instance of the listener object.
+     */
+    T listener() const { return _listener(); }
 
     /**
      * @brief Invokes a method on the listener object with the specified arguments.
@@ -154,7 +161,7 @@ public:
 
 private:
     /// @brief Threadsafe wrapper for managing the listener object.
-    SafeObj<T, std::recursive_mutex> _listener;
+    SafeObj<T, std::recursive_mutex> _listener = {};
 };
 
 /**
@@ -229,6 +236,13 @@ public:
      * @return `true` if the listener is empty, otherwise `false`.
      */
     bool empty() const noexcept;
+    
+    /**
+     * @brief Extracts and returns the listener object.
+     *
+     * @return An instance of the listener object.
+     */
+    std::shared_ptr<T> listener() const noexcept { return std::atomic_load(&_listener); }
 
     /**
      * @brief Invokes a method on the listener object with the specified arguments.
