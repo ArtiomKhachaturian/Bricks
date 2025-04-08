@@ -27,7 +27,7 @@ namespace Bricks
  *
  * @tparam TSharedMutex The type of the shared mutex (e.g., std::shared_mutex).
  */
-template<class TSharedMutex>
+template <class TSharedMutex>
 class SharedLockGuard
 {
 public:
@@ -65,14 +65,14 @@ private:
     TSharedMutex& _mutex;
 };
 
-template<class TSharedMutex>
+template <class TSharedMutex>
 inline SharedLockGuard<TSharedMutex>::SharedLockGuard(TSharedMutex& mutex)
     : _mutex(mutex)
 {
     _mutex.lock_shared();
 }
 
-template<class TSharedMutex>
+template <class TSharedMutex>
 inline SharedLockGuard<TSharedMutex>::SharedLockGuard(TSharedMutex& mutex, std::adopt_lock_t)
     : _mutex(mutex)
 {

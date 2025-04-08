@@ -30,7 +30,7 @@ namespace Bricks
  *
  * @tparam ThreadSafe If true, selects a real mutex (`std::recursive_mutex`). If false, selects a stub mutex.
  */
-template<bool ThreadSafe>
+template <bool ThreadSafe>
 struct ListenersMutexSelector
 {
     /// @brief Defines the mutex type as `std::recursive_mutex` for thread-safe operations.
@@ -43,7 +43,7 @@ struct ListenersMutexSelector
  * When `ThreadSafe` is false, the `MutexType` is defined as `StubMutex`, which provides
  * dummy locking functionality to mimic mutex operations without actual synchronization.
  */
-template<>
+template <>
 struct ListenersMutexSelector<false>
 {
     /**
@@ -131,7 +131,7 @@ inline bool constexpr ok(RemoveResult result) {
  * @tparam ThreadSafe If true, enables thread-safe operations using a mutex (default: true).
  *                    If false, no mutex locking is performed (via `StubMutex`).
  */
-template<class TListener, bool ThreadSafe = true>
+template <class TListener, bool ThreadSafe = true>
 class Listeners
 {
     /// @brief Defines the type of mutex based on the thread-safety configuration.
@@ -282,27 +282,26 @@ private:
     SafeObj<std::vector<TListener>, MutexType> _listeners;
 };
 
-
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline Listeners<TListener, ThreadSafe>::Listeners()
 {
     _listeners->reserve(1U);
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline Listeners<TListener, ThreadSafe>::Listeners(const Listeners& other)
 {
     LOCK_READ_SAFE_OBJ(other._listeners);
     _listeners = other._listeners.constRef();
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline Listeners<TListener, ThreadSafe>::Listeners(Listeners&& tmp) noexcept
 {
     _listeners = tmp._listeners.take();
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline AddResult Listeners<TListener, ThreadSafe>::add(const TListener& listener)
 {
     if (listener) {
@@ -317,7 +316,7 @@ inline AddResult Listeners<TListener, ThreadSafe>::add(const TListener& listener
     return AddResult::NullInput;
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline RemoveResult Listeners<TListener, ThreadSafe>::remove(const TListener& listener)
 {
     if (listener) {
@@ -331,7 +330,7 @@ inline RemoveResult Listeners<TListener, ThreadSafe>::remove(const TListener& li
     return RemoveResult::NullInput;
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline bool Listeners<TListener, ThreadSafe>::contains(const TListener& listener) const
 {
     if (listener) {
@@ -342,7 +341,7 @@ inline bool Listeners<TListener, ThreadSafe>::contains(const TListener& listener
     return false;
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline bool Listeners<TListener, ThreadSafe>::clear()
 {
     LOCK_WRITE_SAFE_OBJ(_listeners);
@@ -353,21 +352,21 @@ inline bool Listeners<TListener, ThreadSafe>::clear()
     return false;
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline bool Listeners<TListener, ThreadSafe>::empty() const noexcept
 {
     LOCK_READ_SAFE_OBJ(_listeners);
     return _listeners->empty();
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline size_t Listeners<TListener, ThreadSafe>::size() const noexcept
 {
     LOCK_READ_SAFE_OBJ(_listeners);
     return _listeners->size();
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 template <class Method, typename... Args>
 inline void Listeners<TListener, ThreadSafe>::invoke(const Method& method,
                                                      Args&&... args) const
@@ -392,7 +391,7 @@ inline void Listeners<TListener, ThreadSafe>::invoke(const Method& method,
     }
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 template <class Functor>
 inline void Listeners<TListener, ThreadSafe>::foreach(const Functor& functor) const
 {
@@ -416,7 +415,7 @@ inline void Listeners<TListener, ThreadSafe>::foreach(const Functor& functor) co
     }
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline Listeners<TListener, ThreadSafe>& Listeners<TListener, ThreadSafe>::
     operator = (const Listeners& other)
 {
@@ -428,7 +427,7 @@ inline Listeners<TListener, ThreadSafe>& Listeners<TListener, ThreadSafe>::
     return *this;
 }
 
-template<class TListener, bool ThreadSafe>
+template <class TListener, bool ThreadSafe>
 inline Listeners<TListener, ThreadSafe>& Listeners<TListener, ThreadSafe>::
     operator = (Listeners&& tmp) noexcept
 {

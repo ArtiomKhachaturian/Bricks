@@ -159,7 +159,7 @@ protected:
      * @param logger The logger instance to be stored.
      * @param args Additional arguments for the base interfaces.
      */
-    template<typename... Args>
+    template <typename... Args>
     Loggable(TLoggerPointerType logger, Args&&... args);
 
     /**
@@ -201,7 +201,7 @@ template <class... BaseInterfaces>
 using LoggableU = Loggable<std::unique_ptr<Logger>, BaseInterfaces...>;
 
 template <class TLoggerPointerType, class... BaseInterfaces>
-template<typename... Args>
+template <typename... Args>
 inline Loggable<TLoggerPointerType, BaseInterfaces...>::
     Loggable(TLoggerPointerType logger, Args&&... args)
         : BaseInterfaces(std::forward<Args>(args)...)...

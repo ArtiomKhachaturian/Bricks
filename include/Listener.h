@@ -29,7 +29,7 @@ namespace Bricks
  *
  * @tparam T The type of the listener object being managed.
  */
-template<typename T>
+template <typename T>
 class Listener
 {
 public:
@@ -172,7 +172,7 @@ private:
  *
  * @tparam T The type of the object managed by the shared pointer.
  */
-template<typename T>
+template <typename T>
 class Listener<std::shared_ptr<T>>
 {
 public:
@@ -303,33 +303,34 @@ private:
     std::shared_ptr<T> _listener;
 };
 
-template<typename T>
+template <typename T>
 inline Listener<T>::Listener(T listener)
     : _listener(std::move(listener))
 {
 }
 
-template<typename T>
+template <typename T>
 inline Listener<T>::Listener(Listener&& tmp) noexcept
 {
     _listener = tmp._listener.take();
 }
 
-template<typename T> template<typename U>
+template <typename T>
+template <typename U>
 inline void Listener<T>::set(U listener)
 {
     LOCK_WRITE_SAFE_OBJ(_listener);
     _listener = std::move(listener);
 }
 
-template<typename T>
+template <typename T>
 inline bool Listener<T>::empty() const noexcept
 {
     LOCK_READ_SAFE_OBJ(_listener);
     return Invoke<T>::empty(_listener.constRef());
 }
 
-template<typename T>
+template <typename T>
 template <class Method, typename... Args>
 inline void Listener<T>::invoke(const Method& method, Args&&... args) const
 {
@@ -337,7 +338,7 @@ inline void Listener<T>::invoke(const Method& method, Args&&... args) const
     Invoke<T>::make(_listener.constRef(), method, std::forward<Args>(args)...);
 }
 
-template<typename T>
+template <typename T>
 template <typename R, class Method, typename... Args>
 inline R Listener<T>::invokeR(const Method& method, Args&&... args) const
 {
@@ -345,7 +346,7 @@ inline R Listener<T>::invokeR(const Method& method, Args&&... args) const
     return Invoke<T, R>::make(_listener.constRef(), method, std::forward<Args>(args)...);
 }
 
-template<typename T>
+template <typename T>
 inline Listener<T>& Listener<T>::operator = (Listener&& tmp) noexcept
 {
     if (&tmp != this) {
@@ -354,38 +355,39 @@ inline Listener<T>& Listener<T>::operator = (Listener&& tmp) noexcept
     return *this;
 }
 
-template<typename T> template<typename U>
+template <typename T>
+template <typename U>
 inline Listener<T>& Listener<T>::operator = (U listener) noexcept
 {
     set(std::move(listener));
     return *this;
 }
 
-template<typename T>
+template <typename T>
 inline Listener<std::shared_ptr<T>>::Listener(std::shared_ptr<T> listener)
     : _listener(std::move(listener))
 {
 }
 
-template<typename T>
+template <typename T>
 inline Listener<std::shared_ptr<T>>::Listener(Listener&& tmp) noexcept
 {
     set(std::move(tmp._listener));
 }
 
-template<typename T>
+template <typename T>
 inline void Listener<std::shared_ptr<T>>::set(std::shared_ptr<T> listener)
 {
     std::atomic_exchange(&_listener, std::move(listener));
 }
 
-template<typename T>
+template <typename T>
 inline bool Listener<std::shared_ptr<T>>::empty() const noexcept
 {
     return nullptr == std::atomic_load(&_listener);
 }
 
-template<typename T>
+template <typename T>
 template <class Method, typename... Args>
 inline void Listener<std::shared_ptr<T>>::invoke(const Method& method,
                                                  Args&&... args) const
@@ -395,7 +397,7 @@ inline void Listener<std::shared_ptr<T>>::invoke(const Method& method,
                                      std::forward<Args>(args)...);
 }
 
-template<typename T>
+template <typename T>
 template <typename R, class Method, typename... Args>
 inline R Listener<std::shared_ptr<T>>::invokeR(const Method& method, Args&&... args) const
 {
@@ -403,7 +405,7 @@ inline R Listener<std::shared_ptr<T>>::invokeR(const Method& method, Args&&... a
                                                method, std::forward<Args>(args)...);
 }
 
-template<typename T>
+template <typename T>
 inline Listener<std::shared_ptr<T>>& Listener<std::shared_ptr<T>>::
     operator = (Listener&& tmp) noexcept
 {
@@ -413,7 +415,7 @@ inline Listener<std::shared_ptr<T>>& Listener<std::shared_ptr<T>>::
     return *this;
 }
 
-template<typename T>
+template <typename T>
 inline Listener<std::shared_ptr<T>>& Listener<std::shared_ptr<T>>::
     operator = (std::shared_ptr<T> listener) noexcept
 {

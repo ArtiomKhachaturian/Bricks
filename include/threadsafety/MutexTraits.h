@@ -27,7 +27,7 @@ namespace Bricks
  *
  * @tparam TMutexType The type of mutex for which lock types are defined (e.g., std::mutex).
  */
-template<class TMutexType>
+template <class TMutexType>
 struct MutexTraits
 {
     /// @brief Alias for the type of write lock used with the mutex.
@@ -43,7 +43,7 @@ struct MutexTraits
  * This specialization of MutexTraits provides appropriate alias types for shared and exclusive locks.
  * Shared locks use SharedLockGuard to manage shared access, while exclusive locks use std::lock_guard.
  */
-template<>
+template <>
 struct MutexTraits<std::shared_mutex>
 {
     /// @brief Alias for the type of write lock used with std::shared_mutex.

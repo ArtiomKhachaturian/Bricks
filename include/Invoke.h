@@ -27,7 +27,7 @@ namespace Bricks
  * @tparam TListener The type of the listener object (e.g., raw pointer, std::shared_ptr).
  * @tparam TResult The return type of the invoked method (defaults to `void`).
  */
-template<class TListener, typename TResult = void>
+template <class TListener, typename TResult = void>
 class Invoke
 {
 public:
@@ -78,7 +78,7 @@ public:
  * @tparam T The type of the object managed by the weak pointer.
  * @tparam TResult The return type of the invoked method (defaults to `void`).
  */
-template<typename T, typename TResult>
+template <typename T, typename TResult>
 class Invoke<std::weak_ptr<T>, TResult>
 {
     /// @brief Helper alias for invoking methods on `std::shared_ptr` instances.
