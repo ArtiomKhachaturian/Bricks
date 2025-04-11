@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once // Blob.h
 #include <cstdint>
+#include <cstddef>
 
 namespace Bricks
 {
