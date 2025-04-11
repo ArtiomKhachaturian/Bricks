@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once // Blob.h
 #include <cstdint>
+#include <cstddef>
 
 namespace Bricks
 {
@@ -60,6 +61,13 @@ public:
      * @return A constant pointer to the blob's data, or `nullptr` if no data is available.
      */
     virtual const uint8_t* data() const { return nullptr; }
+    
+    /**
+     * @brief Overloaded version of constant method.
+     *
+     * @return A non-constant pointer to the blob's data, or `nullptr` if no data is available.
+     */
+    virtual uint8_t* data() { return nullptr; }
 
     /**
      * @brief Checks if the blob is empty.
@@ -68,7 +76,7 @@ public:
      *
      * @return `true` if the blob is empty, otherwise `false`.
      */
-    bool empty() const { return 0U == size() || nullptr == data(); }
+    virtual bool empty() const { return 0U == size(); }
 
     /**
      * @brief Checks if the blob is valid (non-empty).
@@ -78,7 +86,7 @@ public:
      *
      * @return `true` if the blob is valid, otherwise `false`.
      */
-    explicit operator bool () const { return size() > 0U && nullptr != data(); }
+    explicit operator bool () const { return !empty(); }
 };
 
 } // namespace Bricks
