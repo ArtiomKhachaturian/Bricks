@@ -12,112 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once // Listeners.h
+#include "AddResult.h"
+#include "RemoveResult.h"
 #include "Invoke.h"
-#include "SafeObj.h"
+#include "ListenersMutexSelector.h"
 #include <algorithm>
 #include <memory>
 #include <vector>
 
 namespace Bricks
 {
-
-/**
- * @brief A selector structure to choose the appropriate mutex type based on thread-safety requirements.
- *
- * The `ListenersMutexSelector` provides a `MutexType` definition that resolves to either
- * a real mutex (`std::recursive_mutex`) or a stub mutex (`StubMutex`), depending on the
- * `ThreadSafe` boolean template parameter.
- *
- * @tparam ThreadSafe If true, selects a real mutex (`std::recursive_mutex`). If false, selects a stub mutex.
- */
-template <bool ThreadSafe>
-struct ListenersMutexSelector
-{
-    /// @brief Defines the mutex type as `std::recursive_mutex` for thread-safe operations.
-    using MutexType = std::recursive_mutex;
-};
-
-/**
- * @brief Specialization of `ListenersMutexSelector` for non-thread-safe usage.
- *
- * When `ThreadSafe` is false, the `MutexType` is defined as `StubMutex`, which provides
- * dummy locking functionality to mimic mutex operations without actual synchronization.
- */
-template <>
-struct ListenersMutexSelector<false>
-{
-    /**
-     * @brief A stub mutex class for non-thread-safe operations.
-     *
-     * The `StubMutex` class provides no-op implementations of `lock`, `try_lock`, and `unlock`,
-     * allowing it to be used in non-thread-safe contexts where synchronization is unnecessary.
-     */
-    class StubMutex
-    {
-    public:
-        /// @brief Default constructor.
-        StubMutex() = default;
-
-        /// @brief No-op method to mimic locking.
-        void lock() {}
-
-        /**
-         * @brief No-op method to mimic a try-lock operation.
-         *
-         * Always returns true, indicating the lock was successful.
-         *
-         * @return `true`, as no actual locking occurs.
-         */
-        bool try_lock() { return true; }
-
-        /// @brief No-op method to mimic unlocking.
-        void unlock() {}
-    };
-
-    /// @brief Defines the mutex type as `StubMutex` for non-thread-safe operations.
-    using MutexType = StubMutex;
-};
-
-/**
- * @brief Enumeration representing the result of adding a listener.
- */
-enum class AddResult
-{
-    NullInput,   ///< Failure: The input listener was null.
-    Duplicate,   ///< Failure: The listener already exists in the list.
-    OkFirst,     ///< Success: The first listener was successfully added.
-    Ok           ///< Success: The listener was successfully added.
-};
-
-/**
- * @brief Checks whether the `AddResult` indicates success.
- *
- * @param result The result to check.
- * @return `true` if the result is `AddResult::Ok` or `AddResult::OkFirst`, otherwise `false`.
- */
-inline bool constexpr ok(AddResult result) {
-    return AddResult::Ok == result || AddResult::OkFirst == result;
-}
-
-/**
- * @brief Enumeration representing the result of removing a listener.
- */
-enum class RemoveResult
-{
-    NullInput,   ///< Failure: Invalid input or null pointer.
-    OkLast,      ///< Success: The last listener was successfully removed.
-    Ok           ///< Success: The listener was successfully removed.
-};
-
-/**
- * @brief Checks whether the `RemoveResult` indicates success.
- *
- * @param result The result to check.
- * @return `true` if the result is `RemoveResult::Ok` or `RemoveResult::OkLast`, otherwise `false`.
- */
-inline bool constexpr ok(RemoveResult result) {
-    return RemoveResult::Ok == result || RemoveResult::OkLast == result;
-}
 
 /**
  * @brief A thread-safe wrapper for managing a list of listeners.
