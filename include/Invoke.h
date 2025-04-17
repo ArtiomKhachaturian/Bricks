@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once // Invoke.h
 #include <memory>
+#include <vector>
 
 namespace Bricks
 {
@@ -24,10 +25,10 @@ namespace Bricks
  * of various types, such as raw pointers, shared pointers, and weak pointers.
  * It ensures safe and flexible invocation with the provided arguments.
  *
- * @tparam TListener The type of the listener object (e.g., raw pointer, std::shared_ptr).
+ * @tparam T The type of the listener object (e.g., raw pointer, std::shared_ptr).
  * @tparam TResult The return type of the invoked method (defaults to `void`).
  */
-template <class TListener, typename TResult = void>
+template <class T, typename TResult = void>
 class Invoke
 {
 public:
@@ -45,13 +46,72 @@ public:
      * @return The result of the invoked method, or a default-constructed `TResult` if the listener is invalid.
      */
     template <class Method, typename... Args>
-    static TResult make(const TListener& listener,
-                        const Method& method,
-                        Args&&... args) {
+    static TResult make(const T& listener, const Method& method, Args&&... args) {
         if (listener) {
             return ((*listener).*method)(std::forward<Args>(args)...);
         }
         return TResult();
+    }
+    
+    /**
+     * @brief Invokes a method on the listener objects (collection) with the specified arguments.
+     *
+     *
+     * @tparam Method The type of the method to be invoked.
+     * @tparam Args The types of the arguments to be passed to the method.
+     * @param listener The listener object on which the method will be invoked.
+     * @param method The method pointer to be invoked on the listener.
+     * @param args The arguments to pass to the method.
+     */
+    template <class Method, typename... Args>
+    static void make(const std::vector<T>& listeners,
+                     const Method& method, Args&&... args) {
+        if (!listeners.empty()) {
+            size_t i = 0UL;
+            do {
+                const size_t size = listeners.size();
+                if (i < size) {
+                    make(listeners[i], method, std::forward<Args>(args)...);
+                    if (listeners.size() >= size) {
+                        ++i;
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+            while(true);
+        }
+    }
+    
+    /**
+     * @brief Applies a given functor to each listener in the list.
+     *
+     * This method iterates over all listeners in the list and invokes
+     * the provided functor for each listener.
+     *
+     * @tparam Functor A callable type that defines operator()(listener) or similar.
+     * @param functor The functor to apply to each listener. It must be capable of
+     *                accepting a single argument of the type stored in the list.
+     */
+    template <class Functor>
+    static void apply(const std::vector<T>& listeners, const Functor& functor) {
+        if (!listeners.empty()) {
+            size_t i = 0UL;
+            do {
+                const size_t size = listeners.size();
+                if (i < size) {
+                    functor(listeners[i]);
+                    if (listeners.size() >= size) {
+                        ++i;
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+            while(true);
+        }
     }
     
     /**
@@ -64,7 +124,7 @@ public:
      * @param listener The listener object to verify.
      * @return `true` if the listener is null; otherwise, `false`.
      */
-    static bool empty(const TListener& listener) {
+    static bool empty(const T& listener) {
         return nullptr == listener;
     }
 };
@@ -103,6 +163,71 @@ public:
                         const Method& method,
                         Args&&... args) {
         return Forward::make(listener.lock(), method, std::forward<Args>(args)...);
+    }
+    
+    /**
+     * @brief Invokes a method on the listener objects (collection) referenced by the weak pointer.
+     *
+     * The weak pointer is locked to obtain a `std::shared_ptr`. If the lock succeeds, the
+     * method is invoked on the shared object.
+     *
+     * @tparam Method The type of the method to be invoked.
+     * @tparam Args The types of the arguments to be passed to the method.
+     * @param listener The weak pointer referencing the listener object.
+     * @param method The method pointer to be invoked on the listener.
+     * @param args The arguments to pass to the method.
+     */
+    template <class Method, typename... Args>
+    static void make(const std::vector<std::weak_ptr<T>>& listeners,
+                     const Method& method, Args&&... args) {
+        if (!listeners.empty()) {
+            size_t i = 0UL;
+            do {
+                const size_t size = listeners.size();
+                if (i < size) {
+                    Forward::make(listeners[i].lock(), method, std::forward<Args>(args)...);
+                    if (listeners.size() >= size) {
+                        ++i;
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+            while(true);
+        }
+    }
+    
+    /**
+     * @brief Applies a given functor to each listener in the list.
+     *
+     * This method iterates over all listeners in the list and invokes
+     * the provided functor for each listener.
+     *
+     * @tparam Functor A callable type that defines operator()(listener) or similar.
+     * @param functor The functor to apply to each listener. It must be capable of
+     *                accepting a single argument of the type stored in the list.
+     */
+    template <class Functor>
+    static void apply(const std::vector<std::weak_ptr<T>>& listeners, const Functor& functor) {
+        if (!listeners.empty()) {
+            size_t i = 0UL;
+            do {
+                const size_t size = listeners.size();
+                if (i < size) {
+                    if (const auto listener = listeners[i].lock()) {
+                        functor(listener);
+                    }
+                    if (listeners.size() >= size) {
+                        ++i;
+                    }
+                }
+                else {
+                    break;
+                }
+            }
+            while(true);
+        }
     }
     
     /**
