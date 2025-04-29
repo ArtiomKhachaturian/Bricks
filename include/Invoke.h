@@ -46,11 +46,29 @@ public:
      * @return The result of the invoked method, or a default-constructed `TResult` if the listener is invalid.
      */
     template <class Method, typename... Args>
-    static TResult make(const T& listener, const Method& method, Args&&... args) {
+    static TResult makeR(const T& listener, const Method& method, Args&&... args) {
         if (listener) {
             return ((*listener).*method)(std::forward<Args>(args)...);
         }
-        return TResult();
+        return TResult{};
+    }
+    
+    /**
+     * @brief Invokes a method on the listener object with the specified arguments.
+     *
+     * If the listener is valid (non-null), the specified method is invoked with the provided arguments.
+     *
+     * @tparam Method The type of the method to be invoked.
+     * @tparam Args The types of the arguments to be passed to the method.
+     * @param listener The listener object on which the method will be invoked.
+     * @param method The method pointer to be invoked on the listener.
+     * @param args The arguments to pass to the method.
+     */
+    template <class Method, typename... Args>
+    static void make(const T& listener, const Method& method, Args&&... args) {
+        if (listener) {
+            ((*listener).*method)(std::forward<Args>(args)...);
+        }
     }
     
     /**

@@ -486,7 +486,7 @@ template <typename R, class Method, typename... Args>
 inline R Listener<T, ThreadSafe>::invokeR(const Method& method, Args&&... args) const
 {
     LOCK_READ_SAFE_OBJ(_listener);
-    return Invoke<T, R>::make(_listener.constRef(), method, std::forward<Args>(args)...);
+    return Invoke<T, R>::makeR(_listener.constRef(), method, std::forward<Args>(args)...);
 }
 
 template <typename T, bool ThreadSafe>
