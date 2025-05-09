@@ -37,21 +37,23 @@ class Listener
 {
     /// @brief Defines the type of mutex based on the thread-safety configuration.
     using MutexType = typename ListenersMutexSelector<ThreadSafe>::MutexType;
-    
+    using ReadLock = typename MutexTraits<MutexType>::ReadLock;
+    using WriteLock = typename MutexTraits<MutexType>::WriteLock;
+    using Impl = SafeObj<T, MutexType>;
 public:
     /**
      * @brief Default constructor.
      *
      * Constructs an empty `Listener` instance.
      */
-    Listener() = default;
-
+    Listener();
+    
     /**
      * @brief Constructs a `Listener` with a null listener.
      *
      * @param null A placeholder for initializing with a null listener (`std::nullptr_t`).
      */
-    constexpr Listener(std::nullptr_t) noexcept {}
+    Listener(std::nullptr_t);
 
     /**
      * @brief Constructs a `Listener` with the specified listener object.
@@ -60,17 +62,11 @@ public:
      */
     explicit Listener(T listener);
 
-    /**
-     * @brief Move constructor.
-     *
-     * Transfers ownership of the listener object from a temporary `Listener`.
-     *
-     * @param tmp The temporary `Listener` instance to move from.
-     */
-    Listener(Listener&& tmp) noexcept;
-
-    /// @brief Copy constructor is disabled to prevent copying.
+    /// @brief Copy & move assignment are disabled.
+    Listener(Listener&& tmp) = delete;
     Listener(const Listener&) = delete;
+    Listener& operator=(const Listener&) = delete;
+    Listener& operator=(Listener&&) = delete;
 
     /**
      * @brief Destructor.
@@ -101,13 +97,6 @@ public:
      * @return `true` if the listener is empty, otherwise `false`.
      */
     bool empty() const noexcept;
-    
-    /**
-     * @brief Extracts and returns the listener object.
-     *
-     * @return An instance of the listener object.
-     */
-    T listener() const { return _listener(); }
 
     /**
      * @brief Invokes a method on the listener object with the specified arguments.
@@ -132,19 +121,6 @@ public:
      */
     template <typename R, class Method, typename... Args>
     R invokeR(const Method& method, Args&&... args) const;
-
-    /// @brief Copy assignment is disabled to prevent copying.
-    Listener& operator=(const Listener&) = delete;
-
-    /**
-     * @brief Move assignment operator.
-     *
-     * Transfers ownership of the listener object from another `Listener`.
-     *
-     * @param tmp The temporary `Listener` instance to move from.
-     * @return A reference to this `Listener`.
-     */
-    Listener& operator=(Listener&& tmp) noexcept;
 
     /**
      * @brief Assigns a new listener object.
@@ -164,144 +140,9 @@ public:
      * @return `true` if the listener is valid, otherwise `false`.
      */
     explicit operator bool() const noexcept { return !empty(); }
-
 private:
     /// @brief Threadsafe wrapper for managing the listener object.
-    SafeObj<T, MutexType> _listener = {};
-};
-
-/**
- * @brief Specialization of the `Listener` class for `std::unique_ptr` objects.
- *
- * @tparam T The type of the object managed by the unique pointer.
- * @tparam ThreadSafe If true, enables thread-safe operations using a mutex (default: true).
- *                    If false, no mutex locking is performed (via `StubMutex`).
- */
-template <typename T, bool ThreadSafe>
-class Listener<std::unique_ptr<T>, ThreadSafe>
-{
-    /// @brief Defines the type of mutex based on the thread-safety configuration.
-    using MutexType = typename ListenersMutexSelector<ThreadSafe>::MutexType;
-    
-public:
-    /**
-     * @brief Default constructor.
-     *
-     * Constructs an empty `Listener` instance.
-     */
-    Listener() = default;
-
-    /**
-     * @brief Constructs a `Listener` with a null listener.
-     *
-     * @param null A placeholder for initializing with a null listener (`std::nullptr_t`).
-     */
-    constexpr Listener(std::nullptr_t) noexcept {}
-
-    /**
-     * @brief Constructs a `Listener` with the specified shared pointer.
-     *
-     * @param listener The unique pointer to manage.
-     */
-    explicit Listener(std::unique_ptr<T> listener);
-
-    /**
-     * @brief Move constructor.
-     *
-     * Transfers ownership of the listener object from a temporary `Listener`.
-     *
-     * @param tmp The temporary `Listener` instance to move from.
-     */
-    Listener(Listener&& tmp) noexcept;
-
-    /// @brief Copy constructor is disabled to prevent copying.
-    Listener(const Listener&) = delete;
-
-    /**
-     * @brief Destructor.
-     *
-     * Ensures the listener is properly reset upon destruction.
-     */
-    ~Listener() { reset(); }
-
-    /**
-     * @brief Sets the unique pointer for the listener object.
-     *
-     * @param listener The shared pointer to set.
-     */
-    void set(std::unique_ptr<T> listener = {});
-
-    /**
-     * @brief Resets the listener object to null.
-     */
-    void reset() { set({}); }
-
-    /**
-     * @brief Checks if the listener object is empty.
-     *
-     * A listener is considered empty if the unique pointer is null.
-     *
-     * @return `true` if the listener is empty, otherwise `false`.
-     */
-    bool empty() const noexcept;
-    
-    /**
-     * @brief Invokes a method on the listener object with the specified arguments.
-     *
-     * @tparam Method The type of the method to invoke.
-     * @tparam Args The types of the arguments to pass to the method.
-     * @param method The method pointer to invoke on the listener.
-     * @param args The arguments to pass to the method.
-     */
-    template <class Method, typename... Args>
-    void invoke(const Method& method, Args&&... args) const;
-
-    /**
-     * @brief Invokes a method on the listener object with the specified arguments, returning a result.
-     *
-     * @tparam R The return type of the method being invoked.
-     * @tparam Method The type of the method to invoke.
-     * @tparam Args The types of the arguments to pass to the method.
-     * @param method The method pointer to invoke on the listener.
-     * @param args The arguments to pass to the method.
-     * @return The result of the method invocation.
-     */
-    template <typename R, class Method, typename... Args>
-    R invokeR(const Method& method, Args&&... args) const;
-
-    /// @brief Copy assignment is disabled to prevent copying.
-    Listener& operator=(const Listener&) = delete;
-
-    /**
-     * @brief Move assignment operator.
-     *
-     * Transfers ownership of the listener object from another `Listener`.
-     *
-     * @param tmp The temporary `Listener` instance to move from.
-     * @return A reference to this `Listener`.
-     */
-    Listener& operator=(Listener&& tmp) noexcept;
-
-    /**
-     * @brief Assigns a new unique pointer as the listener object.
-     *
-     * @param listener The new shared pointer to assign.
-     * @return A reference to this `Listener`.
-     */
-    Listener& operator=(std::unique_ptr<T> listener) noexcept;
-
-    /**
-     * @brief Checks if the listener is valid (non-empty).
-     *
-     * This operator allows the `Listener` to be used in a boolean context.
-     *
-     * @return `true` if the listener is valid, otherwise `false`.
-     */
-    explicit operator bool() const noexcept { return !empty(); }
-
-private:
-    /// @brief The unique pointer managing the listener object.
-    SafeUniquePtr<T, MutexType> _listener;
+    const std::shared_ptr<Impl> _listener;
 };
 
 /**
@@ -439,37 +280,42 @@ public:
      * @return `true` if the listener is valid, otherwise `false`.
      */
     explicit operator bool() const noexcept { return !empty(); }
-
 private:
     /// @brief The shared pointer managing the listener object.
     std::shared_ptr<T> _listener;
 };
 
 template <typename T, bool ThreadSafe>
-inline Listener<T, ThreadSafe>::Listener(T listener)
-    : _listener(std::move(listener))
+inline Listener<T, ThreadSafe>::Listener()
+    : _listener(std::make_shared<Impl>())
 {
 }
 
 template <typename T, bool ThreadSafe>
-inline Listener<T, ThreadSafe>::Listener(Listener&& tmp) noexcept
+inline Listener<T, ThreadSafe>::Listener(std::nullptr_t)
+    : _listener(std::make_shared<Impl>(nullptr))
 {
-    _listener = tmp._listener.take();
+}
+
+template <typename T, bool ThreadSafe>
+inline Listener<T, ThreadSafe>::Listener(T listener)
+    : _listener(std::make_shared<Impl>(std::move(listener)))
+{
 }
 
 template <typename T, bool ThreadSafe>
 template <typename U>
 inline void Listener<T, ThreadSafe>::set(U listener)
 {
-    LOCK_WRITE_SAFE_OBJ(_listener);
-    _listener = std::move(listener);
+    const WriteLock lock(_listener->mutex());
+    *_listener = std::move(listener);
 }
 
 template <typename T, bool ThreadSafe>
 inline bool Listener<T, ThreadSafe>::empty() const noexcept
 {
-    LOCK_READ_SAFE_OBJ(_listener);
-    return Invoke<T>::empty(_listener.constRef());
+    const ReadLock lock(_listener->mutex());
+    return Invoke<T>::empty(_listener->constRef());
 }
 
 template <typename T, bool ThreadSafe>
@@ -477,96 +323,23 @@ template <class Method, typename... Args>
 inline void Listener<T, ThreadSafe>::
     invoke(const Method& method, Args&&... args) const
 {
-    LOCK_READ_SAFE_OBJ(_listener);
-    Invoke<T>::make(_listener.constRef(), method, std::forward<Args>(args)...);
+    const auto listener = _listener;
+    const ReadLock lock(listener->mutex());
+    Invoke<T>::make(listener->constRef(), method, std::forward<Args>(args)...);
 }
 
 template <typename T, bool ThreadSafe>
 template <typename R, class Method, typename... Args>
 inline R Listener<T, ThreadSafe>::invokeR(const Method& method, Args&&... args) const
 {
-    LOCK_READ_SAFE_OBJ(_listener);
-    return Invoke<T, R>::makeR(_listener.constRef(), method, std::forward<Args>(args)...);
-}
-
-template <typename T, bool ThreadSafe>
-inline Listener<T, ThreadSafe>& Listener<T, ThreadSafe>::
-    operator = (Listener&& tmp) noexcept
-{
-    if (&tmp != this) {
-        set(tmp._listener.take());
-    }
-    return *this;
+    const auto listener = _listener;
+    const ReadLock lock(listener->mutex());
+    return Invoke<T, R>::makeR(listener->constRef(), method, std::forward<Args>(args)...);
 }
 
 template <typename T, bool ThreadSafe>
 template <typename U>
 inline Listener<T, ThreadSafe>& Listener<T, ThreadSafe>::operator = (U listener) noexcept
-{
-    set(std::move(listener));
-    return *this;
-}
-
-// std::unique_ptr<> specialization
-template <typename T, bool ThreadSafe>
-inline Listener<std::unique_ptr<T>, ThreadSafe>::Listener(std::unique_ptr<T> listener)
-    : _listener(std::move(listener))
-{
-}
-
-template <typename T, bool ThreadSafe>
-inline Listener<std::unique_ptr<T>, ThreadSafe>::Listener(Listener&& tmp) noexcept
-{
-    set(std::move(tmp._listener));
-}
-
-template <typename T, bool ThreadSafe>
-inline void Listener<std::unique_ptr<T>, ThreadSafe>::set(std::unique_ptr<T> listener)
-{
-    _listener(std::move(listener));
-}
-
-template <typename T, bool ThreadSafe>
-inline bool Listener<std::unique_ptr<T>, ThreadSafe>::empty() const noexcept
-{
-    LOCK_READ_SAFE_OBJ(_listener);
-    return nullptr == _listener->get();
-}
-
-template <typename T, bool ThreadSafe>
-template <class Method, typename... Args>
-inline void Listener<std::unique_ptr<T>, ThreadSafe>::invoke(const Method& method,
-                                                             Args&&... args) const
-{
-    LOCK_READ_SAFE_OBJ(_listener);
-    Invoke<std::unique_ptr<T>>::make(_listener.constRef(),
-                                     method,
-                                     std::forward<Args>(args)...);
-}
-
-template <typename T, bool ThreadSafe>
-template <typename R, class Method, typename... Args>
-inline R Listener<std::unique_ptr<T>, ThreadSafe>::invokeR(const Method& method, Args&&... args) const
-{
-    LOCK_READ_SAFE_OBJ(_listener);
-    return Invoke<std::unique_ptr<T>, R>::make(_listener.constRef(),
-                                               method, std::forward<Args>(args)...);
-}
-
-template <typename T, bool ThreadSafe>
-inline Listener<std::unique_ptr<T>, ThreadSafe>& Listener<std::unique_ptr<T>, ThreadSafe>::
-    operator = (Listener&& tmp) noexcept
-{
-    if (&tmp != this) {
-        LOCK_WRITE_SAFE_OBJ(tmp._listener);
-        _listener(tmp._listener.take());
-    }
-    return *this;
-}
-
-template <typename T, bool ThreadSafe>
-inline Listener<std::unique_ptr<T>, ThreadSafe>& Listener<std::unique_ptr<T>, ThreadSafe>::
-    operator = (std::unique_ptr<T> listener) noexcept
 {
     set(std::move(listener));
     return *this;
