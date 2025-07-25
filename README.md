@@ -36,7 +36,7 @@ Intended to be subclassed and customized based on the output destination.
 
 ### `SafeObj`
 
-Encapsulates an object with optional thread safety using customizable mutex types and locking traits.  
+Encapsulates an object with thread safety using customizable mutex types and locking traits.  
 Designed for high-performance, multithreaded environments with fine control over synchronization.
 
 ### `Blob`
