@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once // Invoke.h
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -50,7 +51,11 @@ public:
         if (listener) {
             return ((*listener).*method)(std::forward<Args>(args)...);
         }
-        return TResult{};
+        if constexpr (std::is_void_v<TResult>) {
+            return;
+        } else {
+            return {};
+        }
     }
     
     /**
@@ -84,21 +89,8 @@ public:
     template <class Method, typename... Args>
     static void make(const std::vector<T>& listeners,
                      const Method& method, Args&&... args) {
-        if (!listeners.empty()) {
-            size_t i = 0UL;
-            do {
-                const size_t size = listeners.size();
-                if (i < size) {
-                    make(listeners[i], method, std::forward<Args>(args)...);
-                    if (listeners.size() >= size) {
-                        ++i;
-                    }
-                }
-                else {
-                    break;
-                }
-            }
-            while(true);
+        for (const auto& l : listeners) {
+            make(l, method, std::forward<Args>(args)...);
         }
     }
     
@@ -114,24 +106,25 @@ public:
      */
     template <class Functor>
     static void apply(const std::vector<T>& listeners, const Functor& functor) {
-        if (!listeners.empty()) {
-            size_t i = 0UL;
-            do {
-                const size_t size = listeners.size();
-                if (i < size) {
-                    functor(listeners[i]);
-                    if (listeners.size() >= size) {
-                        ++i;
-                    }
-                }
-                else {
-                    break;
-                }
-            }
-            while(true);
+        std::for_each(listeners.begin(), listeners.end(), functor);
+    }
+
+    /**
+     * @brief Applies a given functor to a single listener object.
+     *
+     * If the listener is valid (non-null), the functor is invoked with the listener.
+     *
+     * @tparam Functor A callable type that defines operator()(listener) or similar.
+     * @param listener The listener object to apply the functor to.
+     * @param functor The functor to apply to the listener.
+     */
+    template <class Functor>
+    static void apply(const T& listener, const Functor& functor) {
+        if (listener) {
+            functor(listener);
         }
     }
-    
+
     /**
      * @brief Verifies if the referenced listener object is null.
      *
@@ -163,6 +156,30 @@ class Invoke<std::weak_ptr<T>, TResult>
     using Forward = Invoke<std::shared_ptr<T>, TResult>;
 
 public:
+    /**
+     * @brief Invokes a method on the listener object referenced by the weak pointer, returning a result.
+     *
+     * The weak pointer is locked to obtain a `std::shared_ptr`. If the lock succeeds, the
+     * method is invoked on the shared object. Otherwise, a default-constructed `TResult` is returned.
+     *
+     * @tparam Method The type of the method to be invoked.
+     * @tparam Args The types of the arguments to be passed to the method.
+     * @param listener The weak pointer referencing the listener object.
+     * @param method The method pointer to be invoked on the listener.
+     * @param args The arguments to pass to the method.
+     * @return The result of the invoked method, or a default-constructed `TResult` if the lock fails.
+     */
+    template <class Method, typename... Args>
+    static TResult makeR(const std::weak_ptr<T>& listener, const Method& method, Args&&... args) {
+        if (const auto l = listener.lock()) {
+            return ((*l).*method)(std::forward<Args>(args)...);
+        }
+        if constexpr (std::is_void_v<TResult>) {
+            return;
+        } else {
+            return {};
+        }
+    }
     /**
      * @brief Invokes a method on the listener object referenced by the weak pointer.
      *
@@ -198,21 +215,8 @@ public:
     template <class Method, typename... Args>
     static void make(const std::vector<std::weak_ptr<T>>& listeners,
                      const Method& method, Args&&... args) {
-        if (!listeners.empty()) {
-            size_t i = 0UL;
-            do {
-                const size_t size = listeners.size();
-                if (i < size) {
-                    Forward::make(listeners[i].lock(), method, std::forward<Args>(args)...);
-                    if (listeners.size() >= size) {
-                        ++i;
-                    }
-                }
-                else {
-                    break;
-                }
-            }
-            while(true);
+        for (const auto& l : listeners) {
+            Forward::make(l.lock(), method, std::forward<Args>(args)...);
         }
     }
     
@@ -228,26 +232,30 @@ public:
      */
     template <class Functor>
     static void apply(const std::vector<std::weak_ptr<T>>& listeners, const Functor& functor) {
-        if (!listeners.empty()) {
-            size_t i = 0UL;
-            do {
-                const size_t size = listeners.size();
-                if (i < size) {
-                    if (const auto listener = listeners[i].lock()) {
-                        functor(listener);
-                    }
-                    if (listeners.size() >= size) {
-                        ++i;
-                    }
-                }
-                else {
-                    break;
-                }
+        std::for_each(listeners.begin(), listeners.end(), [f = functor](const auto& l) {
+            if (const auto listener = l.lock()) {
+                f(listener);
             }
-            while(true);
+        });
+    }
+
+    /**
+     * @brief Applies a given functor to a single listener object referenced by the weak pointer.
+     *
+     * The weak pointer is locked to obtain a `std::shared_ptr`. If the lock succeeds, the
+     * functor is invoked with the shared pointer.
+     *
+     * @tparam Functor A callable type that defines operator()(listener) or similar.
+     * @param listener The weak pointer referencing the listener object.
+     * @param functor The functor to apply to the listener.
+     */
+    template <class Functor>
+    static void apply(const std::weak_ptr<T>& listener, const Functor& functor) {
+        if (const auto l = listener.lock()) {
+            functor(l);
         }
     }
-    
+
     /**
      * @brief Checks whether the object referenced by the weak pointer has been deleted.
      *

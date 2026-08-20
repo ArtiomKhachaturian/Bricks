@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #pragma once // Listeners.h
-#include "AddResult.h"
-#include "RemoveResult.h"
 #include "Invoke.h"
-#include "ListenersMutexSelector.h"
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <vector>
 
@@ -30,33 +28,31 @@ namespace Bricks
  * The `Listeners` class provides a convenient interface for managing a collection of listeners.
  * It supports thread-safe operations by default, but can be configured for non-thread-safe usage.
  * Common listener types such as raw pointers, `std::shared_ptr`, and `std::weak_ptr` are supported,
- * but `std::unique_ptr` doesn't supported.
+ * but `std::unique_ptr` doesn't supported for thread-safe version.
  *
  * @tparam T The type of the listener objects.
  * @tparam ThreadSafe If true, enables thread-safe operations using a mutex (default: true).
  *                    If false, no mutex locking is performed (via `StubMutex`).
  */
-template <class T, bool ThreadSafe = true>
-class Listeners
+template <class T, bool ThreadSafe = true> class Listeners;
+
+template <class T>
+class Listeners<T, true>
 {
-    /// @brief Defines the type of mutex based on the thread-safety configuration.
-    using MutexType = typename ListenersMutexSelector<ThreadSafe>::MutexType;
-    using ReadLock = typename MutexTraits<MutexType>::ReadLock;
-    using WriteLock = typename MutexTraits<MutexType>::WriteLock;
-    using Impl = SafeObj<std::vector<T>, MutexType>;
+    using Container = std::vector<std::pair<uint64_t, T>>;
 public:
     /**
      * @brief Default constructor.
      *
      * Constructs an empty `Listeners` instance.
      */
-    Listeners();
+    Listeners() : _snapshot(std::make_shared<Container>()) {}
     
     /// @brief Copy & move assignment are disabled.
-    Listeners(Listeners&&) = delete;
+    Listeners(Listeners&&) noexcept = delete;
     Listeners(const Listeners&) = delete;
     Listeners& operator=(const Listeners&) = delete;
-    Listeners& operator=(Listeners&&) = delete;
+    Listeners& operator=(Listeners&&) noexcept = delete;
 
     /**
      * @brief Destructor.
@@ -68,32 +64,74 @@ public:
     /**
      * @brief Adds a listener to the list.
      *
-     * Adds the given listener to the collection. If the listener already exists,
-     * it will not be added again.
+     * Adds the given listener to the collection.
      *
      * @param listener The listener object to add.
-     * @return The result of the add operation (e.g., `AddResult::Ok`, `AddResult::Duplicate`).
+     * @return zero if failed, otherwise - ID of added listener.
      */
-    AddResult add(const T& listener);
+    uint64_t add(T listener, bool* wasAdded1st = nullptr) {
+        uint64_t id = 0ULL;
+        if (!Invoke<T>::empty(listener)) {
+            const std::lock_guard guard(_m);
+            id = ++_next;
+            const auto old_snapshot = std::atomic_load_explicit(&_snapshot, std::memory_order_relaxed);
+            auto new_snapshot = std::make_shared<Container>(*old_snapshot); // make deep copy
+            new_snapshot->emplace_back(std::make_pair(id, std::move(listener)));
+            if (wasAdded1st && 1 == new_snapshot->size()) {
+                *wasAdded1st = true;
+            }
+            std::atomic_store_explicit(&_snapshot, std::move(new_snapshot), std::memory_order_release);
+        }
+        return id;
+    }
 
     /**
      * @brief Removes a listener from the list.
      *
      * Removes the specified listener from the collection.
      *
-     * @param listener The listener object to remove.
-     * @return The result of the removal operation (e.g., `RemoveResult::Ok`, `RemoveResult::NullInput`).
+     * @param id listener's id  to remove.
+     * @return true if listener has been removed.
      */
-    RemoveResult remove(const T& listener);
+    bool remove(uint64_t id, bool* wasRemovedLast = nullptr) {
+        bool found = false;
+        if (id) {
+            const std::lock_guard guard(_m);
+            const auto old_snapshot = std::atomic_load_explicit(&_snapshot, std::memory_order_relaxed);
+            found = std::any_of(old_snapshot->begin(), old_snapshot->end(), [id](const auto& l) {
+                return l.first == id;
+            });
+            if (found) {
+                auto new_snapshot = std::make_shared<Container>();
+                new_snapshot->reserve(old_snapshot->size() - 1);
+                std::copy_if(old_snapshot->begin(), old_snapshot->end(), std::back_inserter(*new_snapshot),
+                             [id](const auto& l) { return l.first != id; });
+                if (wasRemovedLast) {
+                    *wasRemovedLast = new_snapshot->empty();
+                }
+                std::atomic_store_explicit(&_snapshot, std::move(new_snapshot), std::memory_order_release);
+            }
+        }
+        return found;
+    }
     
     /**
      * @brief Checks if the given listener is present in the list.
      *
      *
-     * @param listener The listener object to check.
+     * @param id listener's id  to check.
      * @return `true` if the list contains such listener, otherwise `false`.
      */
-    bool contains(const T& listener) const;
+    bool contains(uint64_t id) const {
+        if (id) {
+            const auto snapshot = std::atomic_load_explicit(&_snapshot, std::memory_order_acquire);
+            const auto it = std::find_if(snapshot->begin(), snapshot->end(), [id](const auto& l) {
+                return l.first == id;
+            });
+            return it != snapshot->end();
+        }
+        return false;
+    }
 
     /**
      * @brief Clears all listeners from the list.
@@ -102,21 +140,33 @@ public:
      *
      * @return `true` if the list was not empty, otherwise `false`.
      */
-    bool clear();
+    bool clear() {
+        const std::lock_guard guard(_m);
+        const auto old_snapshot = std::atomic_exchange_explicit(&_snapshot,
+                                                                std::make_shared<Container>(),
+                                                                std::memory_order_release);
+        return !old_snapshot->empty();
+    }
 
     /**
      * @brief Checks if the list of listeners is empty.
      *
      * @return `true` if the list is empty, otherwise `false`.
      */
-    bool empty() const noexcept;
+    bool empty() const noexcept {
+        const auto snapshot = std::atomic_load_explicit(&_snapshot, std::memory_order_acquire);
+        return snapshot->empty();
+    }
 
     /**
      * @brief Gets the number of listeners in the list.
      *
      * @return The number of listeners in the collection.
      */
-    size_t size() const noexcept;
+    size_t size() const noexcept {
+        const auto snapshot = std::atomic_load_explicit(&_snapshot, std::memory_order_acquire);
+        return snapshot->size();
+    }
 
     /**
      * @brief Invokes a method on all listeners in the list with the specified arguments.
@@ -129,8 +179,13 @@ public:
      * @param args The arguments to pass to the method.
      */
     template <class Method, typename... Args>
-    void invoke(const Method& method, Args&&... args) const;
-    
+    void invoke(const Method& method, Args&&... args) const {
+        const auto snapshot = std::atomic_load_explicit(&_snapshot, std::memory_order_acquire);
+        std::for_each(snapshot->begin(), snapshot->end(), [&](const auto& l) {
+            Invoke<T>::make(l.second, method, std::forward<Args>(args)...);
+        });
+    }
+
     /**
      * @brief Applies a given functor to each listener in the list.
      *
@@ -142,7 +197,12 @@ public:
      *                accepting a single argument of the type stored in the list.
      */
     template <class Functor>
-    void apply(const Functor& functor) const;
+    void apply(const Functor& functor) const {
+        const auto snapshot = std::atomic_load_explicit(&_snapshot, std::memory_order_acquire);
+        std::for_each(snapshot->begin(), snapshot->end(), [&functor](const auto& l) {
+            Invoke<T>::apply(l.second, functor);
+        });
+    }
     
     /**
      * @brief Checks if the listeners is valid (non-empty).
@@ -153,102 +213,102 @@ public:
      */
     explicit operator bool() const noexcept { return !empty(); }
 private:
-    /// @brief A thread-safe wrapper around the vector of listener objects.
-    const std::shared_ptr<Impl> _listeners;
+    std::mutex _m; // for snapshot modifications only
+    uint64_t _next = 0ULL;
+    std::shared_ptr<Container> _snapshot;
 };
 
-template <class T, bool ThreadSafe>
-inline Listeners<T, ThreadSafe>::Listeners()
-    : _listeners(std::make_shared<Impl>())
-{
-    (*_listeners)->reserve(1U);
-}
-
-template <class T, bool ThreadSafe>
-inline AddResult Listeners<T, ThreadSafe>::add(const T& listener)
-{
-    if (listener) {
-        const WriteLock lock(_listeners->mutex());
-        auto& listeners = *_listeners;
-        const auto it = std::find(listeners->begin(), listeners->end(), listener);
-        if (it == listeners->end()) {
-            listeners->push_back(listener);
-            return 1U == listeners->size() ? AddResult::OkFirst : AddResult::Ok;
+template <class T>
+class Listeners<T, false> {
+    using Container = std::vector<std::pair<uint64_t, T>>;
+public:
+    Listeners() = default;
+    Listeners(Listeners&& tmp) noexcept
+        : _next(tmp._next)
+        , _snapshot(std::move(tmp._snapshot)) {
+        tmp._next = 0ULL;
+    }
+    /// @brief Copy assignment is disabled.
+    Listeners(const Listeners&) = delete;
+    Listeners& operator=(const Listeners&) = delete;
+    Listeners& operator=(Listeners&& tmp) noexcept {
+        if (&tmp != this) {
+            _next = tmp._next;
+            _snapshot = std::move(tmp._snapshot);
+            tmp._next = 0ULL;
         }
-        return AddResult::Duplicate;
+        return *this;
     }
-    return AddResult::NullInput;
-}
+    ~Listeners() { clear(); }
 
-template <class T, bool ThreadSafe>
-inline RemoveResult Listeners<T, ThreadSafe>::remove(const T& listener)
-{
-    if (listener) {
-        const WriteLock lock(_listeners->mutex());
-        auto& listeners = *_listeners;
-        const auto it = std::find(listeners->begin(), listeners->end(), listener);
-        if (it != listeners->end()) {
-            listeners->erase(it);
-            return listeners->empty() ? RemoveResult::OkLast : RemoveResult::Ok;
+    uint64_t add(T listener, bool* wasAdded1st = nullptr) {
+        uint64_t id = 0ULL;
+        if (!Invoke<T>::empty(listener)) {
+            id = ++_next;
+            _snapshot.push_back(std::make_pair(id, std::move(listener)));
+            if (wasAdded1st && 1 == _snapshot.size()) {
+                *wasAdded1st = true;
+            }
         }
+        return id;
     }
-    return RemoveResult::NullInput;
-}
 
-template <class T, bool ThreadSafe>
-inline bool Listeners<T, ThreadSafe>::contains(const T& listener) const
-{
-    if (listener) {
-        const ReadLock lock(_listeners->mutex());
-        const auto& listeners = *_listeners;
-        const auto it = std::find(listeners->begin(), listeners->end(), listener);
-        return it != listeners->end();
+    bool remove(uint64_t id, bool* wasRemovedLast = nullptr) {
+        bool found = false;
+        if (id) {
+            for (auto it = _snapshot.begin(); it != _snapshot.end(); ++it) {
+                if (it->first == id) {
+                    _snapshot.erase(it);
+                    found = true;
+                    break;
+                }
+            }
+            if (found && wasRemovedLast) {
+                *wasRemovedLast = _snapshot.empty();
+            }
+        }
+        return found;
     }
-    return false;
-}
-
-template <class T, bool ThreadSafe>
-inline bool Listeners<T, ThreadSafe>::clear()
-{
-    const WriteLock lock(_listeners->mutex());
-    auto& listeners = *_listeners;
-    if (!listeners->empty()) {
-        listeners->clear();
-        return true;
+   
+    bool contains(uint64_t id) const {
+        if (id) {
+            const auto it = std::find_if(_snapshot.begin(), _snapshot.end(), [id](const auto& l) {
+                return l.first == id;
+            });
+            return it != _snapshot.end();
+        }
+        return false;
     }
-    return false;
-}
 
-template <class T, bool ThreadSafe>
-inline bool Listeners<T, ThreadSafe>::empty() const noexcept
-{
-    const ReadLock lock(_listeners->mutex());
-    return (*_listeners)->empty();
-}
+    bool clear() {
+        const auto empty = _snapshot.empty();
+        _snapshot.clear();
+        return !empty;
+    }
 
-template <class T, bool ThreadSafe>
-inline size_t Listeners<T, ThreadSafe>::size() const noexcept
-{
-    const ReadLock lock(_listeners->mutex());
-    return (*_listeners)->size();
-}
+    bool empty() const noexcept { return _snapshot.empty(); }
 
-template <class T, bool ThreadSafe>
-template <class Method, typename... Args>
-inline void Listeners<T, ThreadSafe>::invoke(const Method& method, Args&&... args) const
-{
-    const auto listeners = _listeners;
-    const ReadLock lock(listeners->mutex());
-    Invoke<T>::make(listeners->constRef(), method, std::forward<Args>(args)...);
-}
+    size_t size() const noexcept { return _snapshot.size(); }
 
-template <class T, bool ThreadSafe>
-template <class Functor>
-inline void Listeners<T, ThreadSafe>::apply(const Functor& functor) const
-{
-    const auto listeners = _listeners;
-    const ReadLock lock(listeners->mutex());
-    Invoke<T>::apply(listeners->constRef(), functor);
-}
+    template <class Method, typename... Args>
+    void invoke(const Method& method, Args&&... args) const {
+        std::for_each(_snapshot.begin(), _snapshot.end(), [&](const auto& l) {
+            Invoke<T>::make(l.second, method, std::forward<Args>(args)...);
+        });
+    }
+
+    template <class Functor>
+    void apply(const Functor& functor) const {
+        std::for_each(_snapshot.begin(), _snapshot.end(), [&functor](const auto& l) {
+            Invoke<T>::apply(l.second, functor);
+        });
+    }
+    
+    explicit operator bool() const noexcept { return !empty(); }
+private:
+    uint64_t _next = 0ULL;
+    Container _snapshot;
+    
+};
 
 } // namespace Bricks
