@@ -15,6 +15,7 @@
 #include "SharedLockGuard.h"
 #include <mutex>
 #include <shared_mutex>
+#include <type_traits>
 
 namespace Bricks
 {
@@ -52,5 +53,22 @@ struct MutexTraits<std::shared_mutex>
     /// @brief Alias for the type of read lock, which allows shared access to the mutex.
     using ReadLock = SharedLockGuard<std::shared_mutex>;
 };
+
+
+#ifdef __cpp_concepts
+template <typename T> concept LockExclusive = requires(T& mtx) {
+    { mtx.lock() } -> std::same_as<void>;
+    { mtx.try_lock() } -> std::same_as<bool>;
+    { mtx.unlock() } -> std::same_as<void>;
+};
+
+template <typename T> concept LockShared = requires(T& mtx) {
+    { mtx.lock_shared() } -> std::same_as<void>;
+    { mtx.try_lock_shared() } -> std::same_as<bool>;
+    { mtx.unlock_shared() } -> std::same_as<void>;
+};
+
+template <typename T> concept SharedMutex = LockShared<T> && LockExclusive<T>;
+#endif
 
 } // namespace Bricks
