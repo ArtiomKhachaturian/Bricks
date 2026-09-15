@@ -109,6 +109,37 @@ template <class, class> class WriteLocker;
  * @brief Thread-safe wrapper providing synchronized access to an underlying resource.
  * @tparam T The type of the resource being wrapped and protected.
  * @tparam TMutex The mutex type used for synchronization (defaults to std::shared_mutex).
+ * @code
+ * struct BankAccount {
+ *     std::string owner;
+ *     double balance;
+ * };
+ *
+ * void print_balance(const Concurrent<BankAccount>& account) {
+ *     // Read access (shared lock via operator->)
+ *     std::cout << account->balance << std::endl;
+ * }
+ *
+ * // Create a thread-safe wrapper
+ * Concurrent<BankAccount> account{"Alice", 100.0};
+ *
+ * // Write access (exclusive lock via operator->)
+ * account->balance += 50.0;
+ * print_balance(account);
+ *
+ * // Scoped write access (exclusive lock via read())
+ * {
+ *     auto w = account.write();
+ *     w->owner = "Bob";
+ *     w->balance = 200.;
+ * }
+ *
+ * // Scoped read access (shared lock via read())
+ * {
+ *     auto r = account.read();
+ *     std::cout << r->owner << ": " << r->balance << std::endl;
+ * }
+ * @endcode
  */
 template <class T, class TMutex = typename internal::DefaultMutexSelector<T, std::shared_mutex>::Type>
 class Concurrent {
@@ -290,37 +321,6 @@ private:
  * @brief RAII guard providing thread-safe, exclusive (write) access to a resource.
  * @details Acquires an exclusive lock on the mutex upon construction and releases it upon destruction.
  *          Grants mutable access to the underlying resource via `LockerStorage`.
- * @code
- * struct BankAccount {
- *     std::string owner;
- *     double balance;
- * };
- *
- * void print_balance(const Concurrent<BankAccount>& account) {
- *     // Read access (shared lock via operator->)
- *     std::cout << account->balance << std::endl;
- * }
- *
- * // Create a thread-safe wrapper
- * Concurrent<BankAccount> account{"Alice", 100.0};
- *
- * // Write access (exclusive lock via operator->)
- * account->balance += 50.0;
- * print_balance(account);
- *
- * // Scoped write access (exclusive lock via read())
- * {
- *     auto w = account.write();
- *     w->owner = "Bob";
- *     w->balance = 200.;
- * }
- *
- * // Scoped read access (shared lock via read())
- * {
- *     auto r = account.read();
- *     std::cout << r->owner << ": " << r->balance << std::endl;
- * }
- * @endcode
  */
 template <class T, class TMutex>
 class WriteLocker {
